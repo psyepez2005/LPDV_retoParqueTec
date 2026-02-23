@@ -21,7 +21,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-admin}
       POSTGRES_DB: ${POSTGRES_DB:-fraud_db}
     ports:
-      - "5432:5432"
+      - "5439:5432" #Windows:Docker
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
