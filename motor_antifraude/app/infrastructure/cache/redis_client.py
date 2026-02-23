@@ -1,14 +1,20 @@
 import redis.asyncio as redis
 from app.core.config import settings
 
-redis_pool = redis.ConnectionPool.from_url(
-    settings.REDIS_URL,
-    decode_responses=True,
-    max_connections=200,
-    timeout=0.5
-)
+class RedisManager:
+    def __init__(self):
+        self.client: redis.Redis | None = None
 
-redis_client = redis.Redis(connection_pool=redis_pool)
+    async def connect(self):
+        self.client = redis.Redis.from_url(
+            settings.REDIS_URL,
+            decode_responses=True,
+            max_connections=200,
+            socket_timeout=0.5
+        )
 
-async def get_redis_client() -> redis.Redis:
-    return redis_client
+    async def disconnect(self):
+        if self.client:
+            await self.client.aclose()
+
+redis_manager = RedisManager()
