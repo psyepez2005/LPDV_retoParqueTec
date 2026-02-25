@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Plux | Registro de Usuario</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 min-h-screen flex items-center justify-center p-4">
+
+    <div class="max-w-md w-full bg-white rounded-3xl shadow-xl p-8">
+        <div class="text-center mb-8">
+            <h1 class="text-2xl font-bold text-purple-800">Únete a Plux</h1>
+            <p class="text-sm text-gray-500">Crea tu billetera segura en segundos</p>
+        </div>
+
+        <section id="step1" class="space-y-4">
+            <input type="email" id="reg-email" placeholder="Correo electrónico" class="w-full p-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-500 outline-none">
+            <input type="tel" id="reg-phone" placeholder="Número de celular" class="w-full p-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-500 outline-none">
+            <input type="password" id="reg-pass" placeholder="Contraseña" class="w-full p-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-500 outline-none">
+            <button onclick="nextStep(1, 2)" class="w-full bg-purple-600 text-white py-3 rounded-xl font-semibold hover:bg-purple-700 transition">Siguiente</button>
+        </section>
+
+        <section id="step2" class="hidden space-y-4">
+            <h2 class="font-semibold text-gray-700">Paso 2: Foto de tu Cédula</h2>
+            <input type="text" id="id_num" placeholder="Número de cédula" class="w-full p-3 rounded-xl border border-gray-200 outline-none">
+            <div class="relative rounded-2xl overflow-hidden bg-black aspect-[4/3]">
+                <video id="videoID" autoplay class="w-full h-full object-cover"></video>
+            </div>
+            <button onclick="capture('id', 3)" class="w-full bg-orange-500 text-white py-3 rounded-xl font-semibold">Capturar Cédula</button>
+        </section>
+
+        <section id="step3" class="hidden space-y-4 text-center">
+            <h2 class="font-semibold text-gray-700">Paso 3: Prueba de Vida</h2>
+            <p class="text-xs text-gray-500">Encuadra tu rostro y no te muevas</p>
+            <div class="relative rounded-full overflow-hidden bg-black aspect-square w-48 mx-auto border-4 border-purple-100">
+                <video id="videoSelfie" autoplay class="w-full h-full object-cover"></video>
+            </div>
+            <button onclick="capture('selfie', 4)" class="w-full bg-purple-600 text-white py-3 rounded-xl font-semibold mt-4">Validar Rostro</button>
+        </section>
+
+        <section id="step4" class="hidden text-center py-10">
+            <div class="text-6xl mb-4">🎉</div>
+            <h2 class="text-xl font-bold text-gray-800">¡Registro enviado!</h2>
+            <p class="text-sm text-gray-500 mb-6">Estamos verificando tu identidad. Pronto podrás usar tu wallet.</p>
+            <a href="index.html" class="text-purple-600 font-medium hover:underline">Ir al simulador de riesgo →</a>
+        </section>
+    </div>
+
+    <canvas id="canvas" class="hidden"></canvas>
+    <script src="auth.js"></script>
+</body>
+</html>
