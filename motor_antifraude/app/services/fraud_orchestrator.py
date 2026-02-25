@@ -58,8 +58,133 @@ from app.services.trust_score import TrustScoreService
 from app.services.geo_analyzer import GeoAnalyzer
 from app.services.behavior_engine import BehaviorEngine
 from app.services.p2p_analyzer import P2PAnalyzer
+from app.services.rate_limit_scorer import rate_limit_scorer
+from app.services.ip_history import ip_history_analyzer
+from app.services.gps_ip_mismatch import gps_ip_mismatch_detector
+from app.services.session_guard import session_guard
+from app.services.card_testing_detector import card_testing_detector
+from app.services.time_pattern_scorer import time_pattern_scorer
 
 logger = logging.getLogger(__name__)
+
+# ─────────────────────────────────────────────────────────────────────
+# Catálogo de reason codes — mapea cada código a su explicación
+# El mapa usa prefijos para códigos dinámicos (los que terminan en _N)
+# ─────────────────────────────────────────────────────────────────────
+_EXACT_CATALOG: dict[str, tuple[int, str, str]] = {
+    # (puntos, categoría, descripción)
+
+    # ── Blacklist ─────────────────────────────────────────────────────
+    "BLACKLIST_USER_HIT":        (100, "Lista negra",   "El usuario está en lista negra permanente."),
+    "BLACKLIST_DEVICE_HIT":      (100, "Lista negra",   "El dispositivo está en lista negra permanente."),
+    "BLACKLIST_IP_HIT":          (100, "Lista negra",   "La IP está en lista negra permanente."),
+    "BLACKLIST_CARD_HIT":        (100, "Lista negra",   "El BIN de la tarjeta está bloqueado."),
+
+    # ── Velocidad / rate limit ────────────────────────────────────────
+    "IP_RATE_HIGH":              (15,  "Velocidad",     "La IP ha hecho muchas peticiones en 60 segundos (posible bot o ataque)."),
+    "IP_RATE_EXTREME":           (30,  "Velocidad",     "La IP supera el límite crítico de peticiones — ataque en curso probable."),
+    "USER_RATE_HIGH":            (15,  "Velocidad",     "El usuario ha realizado muchas transacciones en 5 minutos."),
+    "USER_RATE_EXTREME":         (35,  "Velocidad",     "El usuario supera el límite crítico — secuencia de cargos masivos."),
+
+    # ── Dispositivo y KYC ────────────────────────────────────────────
+    "EMULATOR_OR_ROOT_DETECTED": (25,  "Dispositivo",   "Se detectó emulador o dispositivo rooteado, técnica usada para fraude."),
+    "SUSPICIOUS_DEVICE_FINGERPRINT": (15, "Dispositivo", "El fingerprint del dispositivo es anómalo o inconsistente."),
+    "HIGH_VELOCITY_OR_LIMIT_EXCEEDED": (20, "Velocidad", "El usuario supera los límites de recarga o hay alta frecuencia de envíos."),
+
+    # ── Comportamiento ────────────────────────────────────────────────
+    "LEARNING_PERIOD_ACTIVE":    (0,   "Comportamiento", "El usuario aún tiene historial limitado — los umbrales de comportamiento son más permisivos."),
+    "PROFILE_CHANGED_LAST_24H": (25,  "Comportamiento", "El perfil (email o teléfono) fue modificado en las últimas 24h — señal de account takeover."),
+    "PAYDAY_WINDOW_REDUCTION":   (0,   "Comportamiento", "Día de quincena: el monto alto es estadisticamente normal, no penalizado."),
+    "P2P_NEW_RECIPIENT_FIRST_TX":(10,  "Comportamiento", "Primer pago a este destinatario — relación nueva sin historial de confianza."),
+
+    # ── Historial del usuario (payload) ──────────────────────────────
+    "ACCOUNT_AGE_VERY_NEW":     (20,  "Historial",     "La cuenta tiene menos de 7 días — periodo de mayor riesgo estadístico."),
+    "ACCOUNT_AGE_NEW":          (10,  "Historial",     "La cuenta tiene menos de 30 días — historial insuficiente."),
+    "AMOUNT_3X_ABOVE_AVERAGE":  (20,  "Historial",     "El monto es más de 3 veces el promedio mensual del usuario."),
+    "HIGH_FAILED_TX_LAST_7D":   (25,  "Historial",     "5 o más transacciones fallidas en los últimos 7 días — patrón de fraude activo."),
+    "FAILED_TX_LAST_7D":        (10,  "Historial",     "3 o más transacciones fallidas en los últimos 7 días."),
+    "HIGH_AMOUNT_NO_KYC":       (15,  "Historial",     "Monto alto con KYC no completado — riesgo regulatorio y de fraude."),
+    "INTERNATIONAL_CARD":       (10,  "Historial",     "Tarjeta emitida en el extranjero — mayor riesgo de fraude cross-border."),
+
+    # ── Sesión ───────────────────────────────────────────────────────
+    "SESSION_REPLAY_ATTACK":    (40,  "Sesión",       "El session_id ya fue usado anteriormente — posible replay attack."),
+    "SESSION_HIJACK_DETECTED":  (100, "Sesión",       "El session_id pertenece a otro usuario — session hijacking confirmado."),
+
+    # ── IP History ────────────────────────────────────────────────────
+    "IP_COUNTRY_JUMP_30MIN":    (25,  "IP History",   "El país de la IP cambió en menos de 30 minutos — posible VPN o cuenta compartida."),
+    "IMPOSSIBLE_IP_JUMP_5MIN":  (50,  "IP History",   "Cambio de país de IP en menos de 5 minutos — físicamente imposible, fráude cl aro."),
+
+    # ── GPS vs IP ────────────────────────────────────────────────────
+    "HIGH_RISK_IP_COUNTRY_RU":  (10,  "Geolocalización", "La IP proviene de Rusia, país con alto índice de fraude en pagos."),
+    "HIGH_RISK_IP_COUNTRY_CN":  (10,  "Geolocalización", "La IP proviene de China."),
+    "HIGH_RISK_IP_COUNTRY_KP":  (10,  "Geolocalización", "La IP proviene de Corea del Norte."),
+    "HIGH_RISK_IP_COUNTRY_IR":  (10,  "Geolocalización", "La IP proviene de Irán."),
+    "HIGH_RISK_IP_COUNTRY_NG":  (10,  "Geolocalización", "La IP proviene de Nigeria."),
+
+    # ── Card Testing ─────────────────────────────────────────────────
+    "NIGHT_TX_NEW_ACCOUNT":     (10,  "Hora / Patrón", "Transacción de madrugada en una cuenta nueva — patrón de fraude frecuente."),
+
+    # ── Geo ───────────────────────────────────────────────────────────
+    "ML_GEO_ANOMALY":           (30,  "Geolocalización", "Modelo ML detectó anomalía geográfica en el patrón de movimiento."),
+    "IMPOSSIBLE_TRAVEL":        (50,  "Geolocalización", "El usuario aparece en dos ubicaciones imposibles de alcanzar en el tiempo transcurrido."),
+    "FIRST_TX_THIS_COUNTRY":    (15,  "Geolocalización", "Primera transacción desde este país — comportamiento nuevo."),
+    "HIGH_RISK_COUNTRY":        (25,  "Geolocalización", "País de alto riesgo para pagos electrónicos."),
+    "VPN_DETECTED":             (20,  "Geolocalización", "Se detectó uso de VPN o proxy."),
+}
+
+_PREFIX_CATALOG: dict[str, tuple[int, str, str]] = {
+    "GPS_IP_COUNTRY_MISMATCH_":  (30, "Geolocalización", "El GPS dice estar en un país diferente al de la IP — posible VPN activa."),
+    "AMOUNT_":                   (25, "Comportamiento",  "El monto de la transacción supera significativamente el promedio histórico del usuario."),
+    "UNUSUAL_HOUR_":             (15, "Hora / Patrón",  "El usuario nunca había realizado una transacción en esta hora del día."),
+    "TX_WITHIN_":                (15, "Comportamiento",  "Login seguido inmediatamente de una transacción — patrón de bot o sesión secuestrada."),
+    "CURRENCY_CHANGE_":          (12, "Comportamiento",  "La moneda usada es diferente a la habitual del usuario."),
+    "FIRST_WEEK_USER_DAY_":      (10, "Historial",       "Primera semana de la cuenta — período de mayor riesgo estadístico."),
+    "P2P_FREQUENT_RECIPIENT_":   (0,  "Comportamiento",  "Destinatario con historial de pagos exitosos — riesgo reducido."),
+    "UNUSUAL_HOUR_":             (15, "Hora / Patrón",  "El usuario nunca había realizado una transacción en esta hora del día."),
+    "CARD_TESTING_PATTERN_":     (40, "Card Testing",    "Se detectaron varias micro-transacciones de sondeo seguidas de un monto grande (card testing)."),
+    "RAPID_BIN_PROBE_":          (35, "Card Testing",    "Múltiples transacciones con el mismo BIN en menos de 10 minutos — ataque de carding."),
+    "UNUSUAL_HOUR_":             (15, "Hora / Patrón",  "El usuario nunca había sido activo en esta hora del día."),
+}
+
+
+def _build_breakdown(reason_codes: list[str]) -> list:
+    """
+    Convierte una lista de reason_codes en ScoreEntry explicadas.
+    Resuelve primero por código exacto, luego por prefijo.
+    """
+    from app.domain.schemas import ScoreEntry
+    entries = []
+    seen    = set()
+    for code in reason_codes:
+        if code in seen:
+            continue
+        seen.add(code)
+
+        if code in _EXACT_CATALOG:
+            pts, cat, desc = _EXACT_CATALOG[code]
+            entries.append(ScoreEntry(code=code, points=pts, category=cat, description=desc))
+            continue
+
+        matched = False
+        for prefix, (pts, cat, desc) in _PREFIX_CATALOG.items():
+            if code.startswith(prefix):
+                entries.append(ScoreEntry(code=code, points=pts, category=cat, description=desc))
+                matched = True
+                break
+
+        if not matched:
+            # Código desconocido — incluirlo igual pero sin explicación detallada
+            entries.append(ScoreEntry(
+                code=code,
+                points=0,
+                category="Otro",
+                description=f"Señal detectada: {code.replace('_', ' ').lower()}.",
+            ))
+
+    # Ordenar por puntos desc para que las señales más graves sean primeras
+    entries.sort(key=lambda e: e.points, reverse=True)
+    return entries
+
 
 # ── Clave HMAC ────────────────────────────────────────────────────────
 # En producción cargar desde KMS o secret manager, nunca hardcodeada.
@@ -94,13 +219,53 @@ class FraudOrchestrator:
     W5_EXTERNAL = 0.15
 
     def __init__(self):
-        redis = redis_manager.client
         self.topup_engine    = TopUpRulesEngine()
-        self.blacklist       = BlacklistService(redis)
-        self.trust_service   = TrustScoreService(redis)
-        self.geo_analyzer    = GeoAnalyzer(redis)
-        self.behavior_engine = BehaviorEngine(redis)
-        self.p2p_analyzer    = P2PAnalyzer(redis)
+        # Los módulos que necesitan Redis se inicializan lazy en evaluate_transaction
+        # para evitar NoneType cuando el singleton se crea antes del startup de Redis.
+        self._blacklist: Optional[BlacklistService]   = None
+        self._trust_service: Optional[TrustScoreService] = None
+        self._geo_analyzer: Optional[GeoAnalyzer]    = None
+        self._behavior_engine: Optional[BehaviorEngine] = None
+        self._p2p_analyzer: Optional[P2PAnalyzer]    = None
+
+    def _ensure_redis_modules(self) -> None:
+        """
+        Inicializa los módulos que dependen de Redis la primera vez que se
+        llama evaluate_transaction. Para entonces redis_manager.client ya
+        está conectado por el startup de FastAPI.
+        """
+        redis = redis_manager.client
+        if self._blacklist is None:
+            self._blacklist       = BlacklistService(redis)
+            self._trust_service   = TrustScoreService(redis)
+            self._geo_analyzer    = GeoAnalyzer(redis)
+            self._behavior_engine = BehaviorEngine(redis)
+            self._p2p_analyzer    = P2PAnalyzer(redis)
+
+    @property
+    def blacklist(self) -> BlacklistService:
+        self._ensure_redis_modules()
+        return self._blacklist  # type: ignore
+
+    @property
+    def trust_service(self) -> TrustScoreService:
+        self._ensure_redis_modules()
+        return self._trust_service  # type: ignore
+
+    @property
+    def geo_analyzer(self) -> GeoAnalyzer:
+        self._ensure_redis_modules()
+        return self._geo_analyzer  # type: ignore
+
+    @property
+    def behavior_engine(self) -> BehaviorEngine:
+        self._ensure_redis_modules()
+        return self._behavior_engine  # type: ignore
+
+    @property
+    def p2p_analyzer(self) -> P2PAnalyzer:
+        self._ensure_redis_modules()
+        return self._p2p_analyzer  # type: ignore
 
     # ------------------------------------------------------------------ #
     #  Entry point — misma firma que el orquestador original             #
@@ -152,6 +317,16 @@ class FraudOrchestrator:
             )
 
         # ══════════════════════════════════════════════════════════════
+        # PASO 1b — Rate limiting global (IP + usuario)
+        # Se ejecuta antes del análisis paralelo porque puede ser ya
+        # un bloqueo inmediato sin necesidad de computar nada más.
+        # ══════════════════════════════════════════════════════════════
+        rate_penalty, rate_codes = await rate_limit_scorer.score(
+            user_id    = str(payload.user_id),
+            ip_address = str(payload.ip_address),
+        )
+
+        # ══════════════════════════════════════════════════════════════
         # PASO 2 — Análisis paralelo
         # Todos los módulos se ejecutan simultáneamente con gather.
         # El tiempo total es el del módulo más lento, no la suma.
@@ -166,10 +341,10 @@ class FraudOrchestrator:
 
         # Construir lista de tareas base (siempre se ejecutan)
         tasks = [
-            self._evaluate_kyc_device(payload),             # → float
-            self._query_external_api(payload),              # → float
-            self._evaluate_velocity(payload),               # → float
-            self.geo_analyzer.analyze(                      # → GeoAnalysisResult
+            self._evaluate_kyc_device(payload),             # [0] → float
+            self._query_external_api(payload),              # [1] → float
+            self._evaluate_velocity(payload),               # [2] → float
+            self.geo_analyzer.analyze(                      # [3] → GeoAnalysisResult
                 user_id     = str(payload.user_id),
                 latitude    = payload.latitude,
                 longitude   = payload.longitude,
@@ -177,7 +352,7 @@ class FraudOrchestrator:
                 bin_country = bin_country,
                 is_vpn      = is_vpn,
             ),
-            self.behavior_engine.analyze(                   # → BehaviorAnalysisResult
+            self.behavior_engine.analyze(                   # [4] → BehaviorAnalysisResult
                 user_id          = str(payload.user_id),
                 amount           = float(payload.amount),
                 currency         = payload.currency,
@@ -188,17 +363,35 @@ class FraudOrchestrator:
                     else None
                 ),
             ),
-            self.trust_service.get_trust_profile(           # → TrustProfile
+            self.trust_service.get_trust_profile(           # [5] → TrustProfile
                 user_id      = str(payload.user_id),
                 device_id    = payload.device_id,
                 country_code = ip_country,
+            ),
+            ip_history_analyzer.check(                      # [6] → IPHistoryResult
+                user_id    = str(payload.user_id),
+                ip_address = str(payload.ip_address),
+                ip_country = ip_country,
+            ),
+            session_guard.check(                            # [7] → SessionGuardResult
+                session_id = str(payload.session_id),
+                user_id    = str(payload.user_id),
+            ),
+            card_testing_detector.check(                    # [8] → CardTestingResult
+                device_id = payload.device_id,
+                card_bin  = payload.card_bin,
+                amount    = float(payload.amount),
+            ),
+            time_pattern_scorer.score(                      # [9] → TimePatternResult
+                user_id          = str(payload.user_id),
+                account_age_days = payload.account_age_days,
             ),
         ]
 
         # Tarea P2P: solo si es una transferencia entre personas
         if is_p2p and payload.recipient_id:
             tasks.append(
-                self.p2p_analyzer.analyze(                  # → P2PAnalysisResult
+                self.p2p_analyzer.analyze(                  # [10] → P2PAnalysisResult
                     sender_id    = str(payload.user_id),
                     recipient_id = str(payload.recipient_id),
                     amount       = float(payload.amount),
@@ -218,9 +411,13 @@ class FraudOrchestrator:
         geo_result      = self._safe_result(raw_results[3], "geo")
         behavior_result = self._safe_result(raw_results[4], "behavior")
         trust_profile   = self._safe_result(raw_results[5], "trust")
+        ip_hist_result  = self._safe_result(raw_results[6], "ip_history")
+        session_result  = self._safe_result(raw_results[7], "session_guard")
+        card_test_result = self._safe_result(raw_results[8], "card_testing")
+        time_result     = self._safe_result(raw_results[9], "time_pattern")
         p2p_result      = (
-            self._safe_result(raw_results[6], "p2p")
-            if is_p2p and len(raw_results) > 6
+            self._safe_result(raw_results[10], "p2p")
+            if is_p2p and len(raw_results) > 10
             else None
         )
 
@@ -252,6 +449,99 @@ class FraudOrchestrator:
         final_score = int(
             max(0.0, min(100.0, weighted_score + p2p_penalty + trust_reduction))
         )
+
+        # ══════════════════════════════════════════════════════════════
+        # PASO 3b — Ajustes por historial y contexto del payload
+        # Estos datos vienen directo del JSON (no de Redis) y sirven
+        # para enriquecer el score con info histórica simulada.
+        # ══════════════════════════════════════════════════════════════
+        from app.domain.schemas import KycLevel
+        history_penalty = 0
+
+        # Cuenta muy nueva con monto alto → riesgo adicional
+        if payload.account_age_days is not None and payload.account_age_days < 7:
+            history_penalty += 20
+            reason_codes.append("ACCOUNT_AGE_VERY_NEW")
+        elif payload.account_age_days is not None and payload.account_age_days < 30:
+            history_penalty += 10
+            reason_codes.append("ACCOUNT_AGE_NEW")
+
+        # Monto actual muy por encima del promedio histórico del usuario
+        if (
+            payload.avg_monthly_amount is not None
+            and payload.avg_monthly_amount > 0
+            and float(payload.amount) > float(payload.avg_monthly_amount) * 3
+        ):
+            history_penalty += 20
+            reason_codes.append("AMOUNT_3X_ABOVE_AVERAGE")
+
+        # Fallos recientes en ventana de 7 días
+        if payload.failed_tx_last_7_days is not None:
+            if payload.failed_tx_last_7_days >= 5:
+                history_penalty += 25
+                reason_codes.append("HIGH_FAILED_TX_LAST_7D")
+            elif payload.failed_tx_last_7_days >= 3:
+                history_penalty += 10
+                reason_codes.append("FAILED_TX_LAST_7D")
+
+        # KYC bajo para montos altos
+        if payload.kyc_level == KycLevel.NONE and float(payload.amount) > 500:
+            history_penalty += 15
+            reason_codes.append("HIGH_AMOUNT_NO_KYC")
+
+        # Tarjeta internacional en transacción local → leve incremento
+        if payload.is_international_card:
+            history_penalty += 10
+            reason_codes.append("INTERNATIONAL_CARD")
+
+        final_score = int(max(0, min(100, final_score + history_penalty)))
+
+        # Aplicar penalización por rate limiting (IP + usuario)
+        if rate_penalty > 0:
+            reason_codes.extend(rate_codes)
+            final_score = int(max(0, min(100, final_score + rate_penalty)))
+
+        # ══════════════════════════════════════════════════════════════
+        # PASO 3c — Nuevas capas de detección
+        # ══════════════════════════════════════════════════════════════
+
+        # ── GPS vs IP Mismatch (síncrono — no usa I/O) ────────────────
+        gps_result = gps_ip_mismatch_detector.check(
+            latitude   = payload.latitude,
+            longitude  = payload.longitude,
+            ip_country = ip_country,
+        )
+        if gps_result.penalty > 0:
+            reason_codes.extend(gps_result.reason_codes)
+            final_score = int(max(0, min(100, final_score + gps_result.penalty)))
+
+        # ── IP History (salto de país) ─────────────────────────────────
+        if ip_hist_result:
+            if ip_hist_result.override_block:
+                final_score = 100
+                reason_codes.extend(ip_hist_result.reason_codes)
+            elif ip_hist_result.penalty > 0:
+                reason_codes.extend(ip_hist_result.reason_codes)
+                final_score = int(max(0, min(100, final_score + ip_hist_result.penalty)))
+
+        # ── Session Guard (replay / hijacking) ────────────────────────
+        if session_result:
+            if session_result.override_block:
+                final_score = 100
+                reason_codes.extend(session_result.reason_codes)
+            elif session_result.penalty > 0:
+                reason_codes.extend(session_result.reason_codes)
+                final_score = int(max(0, min(100, final_score + session_result.penalty)))
+
+        # ── Card Testing ──────────────────────────────────────────────
+        if card_test_result and card_test_result.penalty > 0:
+            reason_codes.extend(card_test_result.reason_codes)
+            final_score = int(max(0, min(100, final_score + card_test_result.penalty)))
+
+        # ── Time Pattern (hora inusual) ───────────────────────────────
+        if time_result and time_result.penalty > 0:
+            reason_codes.extend(time_result.reason_codes)
+            final_score = int(max(0, min(100, final_score + time_result.penalty)))
 
         # ══════════════════════════════════════════════════════════════
         # PASO 4 — Recopilar reason_codes para auditoría
@@ -351,33 +641,62 @@ class FraudOrchestrator:
     async def _evaluate_kyc_device(self, payload: TransactionPayload) -> float:
         """
         Evalúa el riesgo del dispositivo y el user-agent.
+        Ahora usa también los campos declarados del payload (device_os, is_emulator, etc.).
         Tiempo esperado: 5-15ms (Redis lookups).
         """
         score      = 0.0
         ua_lower   = payload.user_agent.lower()
         redis      = redis_manager.client
 
-        # ── Detección de emuladores y herramientas de automatización ──
+        # ── Emulador o root declarado explícitamente por el SDK ──────────
+        if payload.is_emulator:
+            return 90.0   # Retorno inmediato — emulador declarado
+        if payload.is_rooted_device:
+            score += 50.0  # Root/jailbreak — riesgo alto pero no definitivo
+
+        # ── Detección de emuladores por user-agent ────────────────────
         emulator_keywords = [
             "bluestacks", "nox", "ldplayer", "memu", "genymotion",
             "android_x86", "emulator", "headless", "selenium",
             "puppeteer", "playwright", "phantomjs", "webdriver",
         ]
         if any(kw in ua_lower for kw in emulator_keywords):
-            return 90.0   # Retorno inmediato — emulador confirmado
+            return 90.0   # Retorno inmediato — emulador confirmado en UA
 
         # ── User-agent inválido o demasiado corto ─────────────────────
         if not payload.user_agent or len(payload.user_agent) < 10:
             score += 35.0
 
         # ── Inconsistencia OS en user-agent vs sdk_version ────────────
-        # ej. "iphone" en UA pero sdk_version empieza por "android"
         if "iphone" in ua_lower and payload.sdk_version.lower().startswith("android"):
             score += 45.0
         elif "android" in ua_lower and payload.sdk_version.lower().startswith("ios"):
             score += 45.0
 
-        # ── Verificaciones en Redis ───────────────────────────────────
+        # ── Inconsistencia device_os vs user-agent ────────────────────
+        from app.domain.schemas import DeviceOS
+        if payload.device_os == DeviceOS.ANDROID and "iphone" in ua_lower:
+            score += 40.0
+        elif payload.device_os == DeviceOS.IOS and "android" in ua_lower:
+            score += 40.0
+
+        # ── Battery level = 100 en dispositivo móvil = posible bot/script ──
+        if (
+            payload.battery_level == 100
+            and payload.device_os in (DeviceOS.ANDROID, DeviceOS.IOS)
+        ):
+            score += 20.0
+
+        # ── VPN declarada por el cliente (network_type) ────────────────
+        from app.domain.schemas import NetworkType
+        if payload.network_type == NetworkType.VPN:
+            score += 15.0
+
+        # ── Sesión extremadamente corta ─────────────────────────────
+        if payload.session_duration_seconds is not None and payload.session_duration_seconds < 5:
+            score += 25.0  # menos de 5 segundos → bot probable
+
+        # ── Verificaciones en Redis ───────────────────────────────
         try:
             known_key      = f"device:user:{payload.user_id}:known_devices"
             multi_acct_key = f"device:{payload.device_id}:users_24h"
@@ -545,16 +864,11 @@ class FraudOrchestrator:
     ) -> FraudEvaluationResponse:
         """
         Construye la respuesta y la firma con HMAC-SHA256.
-
-        La firma cubre transaction_id + action + risk_score.
-        El Wallet debe verificar esta firma antes de actuar sobre la decisión
-        para prevenir manipulación de respuestas en tránsito.
-
-        Verificación en el Wallet:
-            expected = hmac.new(secret, payload_bytes, sha256).hexdigest()
-            assert response.signature == expected
+        Genera score_breakdown con explicaciones detalladas por factor.
         """
-        # Payload canónico para firma (sort_keys para determinismo)
+        deduped_codes = list(dict.fromkeys(reason_codes))  # deduplicar manteniendo orden
+        breakdown     = _build_breakdown(deduped_codes)
+
         signable = json.dumps(
             {
                 "transaction_id": str(evaluation_id),
@@ -572,14 +886,15 @@ class FraudOrchestrator:
         ).hexdigest()
 
         return FraudEvaluationResponse(
-            transaction_id = evaluation_id,
-            action         = action,
-            risk_score     = risk_score,
-            challenge_type = challenge,
-            reason_codes   = list(set(reason_codes)),   # deduplicar
-            user_message   = user_message,
+            transaction_id   = evaluation_id,
+            action           = action,
+            risk_score       = risk_score,
+            challenge_type   = challenge,
+            reason_codes     = deduped_codes,
+            score_breakdown  = breakdown,
+            user_message     = user_message,
             response_time_ms = processing_ms,
-            signature      = signature,
+            signature        = signature,
         )
 
     # ------------------------------------------------------------------ #

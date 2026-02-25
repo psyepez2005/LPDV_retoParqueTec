@@ -5,6 +5,7 @@ Servicio de autenticación — registro, login y JWT.
 """
 
 import hashlib
+from typing import Optional
 import logging
 import uuid
 from datetime import datetime, timedelta, timezone
@@ -51,7 +52,7 @@ class AuthService:
         username: str,
         password: str,
         cedula: str,
-        face_image_bytes: bytes,
+        face_image_bytes: Optional[bytes] = None,
     ) -> UserRegisterResponse:
 
         await self._check_email_available(db, email)
@@ -66,16 +67,19 @@ class AuthService:
         cedula_hash  = self._hash_cedula(cedula)
         cedula_last4 = cedula[-4:]
 
-        try:
-            from app.services.face_service import face_service
-            face_image_encrypted, face_encoding_encrypted = (
-                await face_service.process_registration_photo(face_image_bytes)
-            )
-        except FaceNotDetectedException:
-            raise
-        except Exception as e:
-            logger.error(f"[Auth] Error procesando foto de cara: {e}")
-            raise FaceNotDetectedException()
+        face_image_encrypted    = None
+        face_encoding_encrypted = None
+        if face_image_bytes:
+            try:
+                from app.services.face_service import face_service
+                face_image_encrypted, face_encoding_encrypted = (
+                    await face_service.process_registration_photo(face_image_bytes)
+                )
+            except FaceNotDetectedException:
+                raise
+            except Exception as e:
+                logger.error(f"[Auth] Error procesando foto de cara: {e}")
+                raise FaceNotDetectedException()
 
         user = User(
             id                      = uuid.uuid4(),
