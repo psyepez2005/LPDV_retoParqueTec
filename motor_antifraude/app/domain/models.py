@@ -50,9 +50,24 @@ class User(Base):
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
 
-    # Datos de identidad — almacenados con hash SHA-256 + salt (PII)
-    email_hash: Mapped[bytes] = mapped_column(BYTEA, nullable=False, unique=True)
-    phone_hash: Mapped[bytes] = mapped_column(BYTEA, nullable=True)
+    # Datos de identidad en texto plano (email único para login)
+    email: Mapped[str] = mapped_column(String(255), nullable=False, unique=True, index=True)
+    username: Mapped[str] = mapped_column(String(100), nullable=False, unique=True, index=True)
+
+    # Contraseña hasheada con bcrypt
+    hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)
+
+    # Cédula: solo los últimos 4 dígitos visibles, el resto hasheado
+    cedula_hash: Mapped[bytes] = mapped_column(BYTEA, nullable=False, unique=True)
+    cedula_last4: Mapped[str] = mapped_column(String(4), nullable=False)
+
+    # Foto de cara cifrada con AES-256-GCM para prueba de vida
+    # Contiene: imagen original cifrada
+    face_image_encrypted: Mapped[bytes] = mapped_column(BYTEA, nullable=True)
+
+    # Vector facial (128 dimensiones) cifrado para comparación biométrica
+    # Se genera con face_recognition al registrarse
+    face_encoding_encrypted: Mapped[bytes] = mapped_column(BYTEA, nullable=True)
 
     # Nivel de verificación KYC
     # "none" → sin verificar

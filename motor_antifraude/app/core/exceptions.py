@@ -5,15 +5,6 @@ Excepciones personalizadas del Motor Antifraude.
 
 Todas heredan de FraudMotorException para poder capturarlas
 en un solo handler global en main.py.
-
-Uso en main.py:
-    from fastapi import Request
-    from fastapi.responses import JSONResponse
-    from app.core.exceptions import FraudMotorException
-
-    @app.exception_handler(FraudMotorException)
-    async def fraud_exception_handler(request: Request, exc: FraudMotorException):
-        return JSONResponse(status_code=exc.status_code, content={"error": exc.message})
 """
 
 
@@ -32,41 +23,75 @@ class FraudMotorException(Exception):
 # ─────────────────────────────────────────────────────────────────────
 
 class InvalidPayloadException(FraudMotorException):
-    """El payload recibido no cumple con el esquema esperado."""
     status_code = 422
     message = "Payload de transacción inválido."
 
 
 class MissingEnrichedDataException(FraudMotorException):
-    """El middleware no pudo enriquecer el payload con datos de GeoIP o BIN."""
     status_code = 422
     message = "No se pudo obtener información geográfica para evaluar la transacción."
 
 
 # ─────────────────────────────────────────────────────────────────────
-# Errores de autenticación y OTP
+# Errores de autenticación y JWT
+# ─────────────────────────────────────────────────────────────────────
+
+class InvalidTokenException(FraudMotorException):
+    """El JWT es inválido o expiró."""
+    status_code = 401
+    message = "Token inválido o expirado."
+
+
+class EmailAlreadyExistsException(FraudMotorException):
+    status_code = 409
+    message = "Este correo ya está registrado."
+
+
+class UsernameAlreadyExistsException(FraudMotorException):
+    status_code = 409
+    message = "Este nombre de usuario ya está en uso."
+
+
+class CedulaAlreadyExistsException(FraudMotorException):
+    status_code = 409
+    message = "Esta cédula ya está registrada."
+
+
+class InvalidCredentialsException(FraudMotorException):
+    status_code = 401
+    message = "Correo o contraseña incorrectos."
+
+
+class AccountSuspendedException(FraudMotorException):
+    status_code = 403
+    message = "Tu cuenta ha sido suspendida. Contacta a soporte."
+
+
+class FaceNotDetectedException(FraudMotorException):
+    status_code = 422
+    message = "No se detectó un rostro claro en la foto. Por favor sube una foto frontal con buena iluminación."
+
+
+# ─────────────────────────────────────────────────────────────────────
+# Errores de OTP
 # ─────────────────────────────────────────────────────────────────────
 
 class OtpExpiredException(FraudMotorException):
-    """El OTP ingresado ya expiró (TTL de 5 minutos superado)."""
     status_code = 400
     message = "El código de verificación ha expirado. Solicita uno nuevo."
 
 
 class OtpInvalidException(FraudMotorException):
-    """El OTP ingresado no coincide con el emitido."""
     status_code = 400
     message = "Código de verificación incorrecto."
 
 
 class OtpMaxAttemptsException(FraudMotorException):
-    """Se superaron los 3 intentos permitidos para ingresar el OTP."""
     status_code = 429
     message = "Demasiados intentos fallidos. Solicita un nuevo código."
 
 
 class OtpAlreadyUsedException(FraudMotorException):
-    """El OTP ya fue utilizado anteriormente."""
     status_code = 400
     message = "Este código de verificación ya fue utilizado."
 
@@ -76,19 +101,16 @@ class OtpAlreadyUsedException(FraudMotorException):
 # ─────────────────────────────────────────────────────────────────────
 
 class TransactionBlockedException(FraudMotorException):
-    """La transacción fue bloqueada por el motor antifraude."""
     status_code = 403
     message = "Operación declinada por políticas de seguridad."
 
 
 class TransactionUnderReviewException(FraudMotorException):
-    """La transacción está en revisión manual."""
     status_code = 202
     message = "Tu transacción está siendo revisada. Te notificaremos pronto."
 
 
 class BlacklistHitException(FraudMotorException):
-    """Una entidad de la transacción está en lista negra."""
     status_code = 403
     message = "Operación no permitida."
 
@@ -98,19 +120,16 @@ class BlacklistHitException(FraudMotorException):
 # ─────────────────────────────────────────────────────────────────────
 
 class RedisUnavailableException(FraudMotorException):
-    """Redis no está disponible. El motor opera en modo degradado."""
     status_code = 503
     message = "Servicio temporalmente no disponible. Intenta en unos momentos."
 
 
 class DatabaseUnavailableException(FraudMotorException):
-    """PostgreSQL no está disponible."""
     status_code = 503
     message = "Servicio temporalmente no disponible. Intenta en unos momentos."
 
 
 class ExternalApiUnavailableException(FraudMotorException):
-    """La API externa (Sift/Kount/MaxMind) no respondió en el tiempo límite."""
     status_code = 503
     message = "No se pudo completar la verificación externa. Intenta nuevamente."
 
@@ -120,12 +139,10 @@ class ExternalApiUnavailableException(FraudMotorException):
 # ─────────────────────────────────────────────────────────────────────
 
 class EncryptionException(FraudMotorException):
-    """Error durante el cifrado o descifrado de datos sensibles."""
     status_code = 500
     message = "Error al procesar datos sensibles."
 
 
 class InvalidSignatureException(FraudMotorException):
-    """La firma HMAC de la respuesta no es válida."""
     status_code = 400
     message = "Firma de respuesta inválida."

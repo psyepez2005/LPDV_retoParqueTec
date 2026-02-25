@@ -19,6 +19,7 @@ from app.core.exceptions import FraudMotorException
 from app.infrastructure.cache.redis_client import redis_manager
 from app.infrastructure.database.session import init_db
 from app.api.routers import transactions
+from app.api.routers import auth
 from app.api.middlewares import (
     GeoEnrichmentMiddleware,
     SecurityHeadersMiddleware,
@@ -58,6 +59,7 @@ app.add_middleware(GeoEnrichmentMiddleware)
 
 # ── Routers ───────────────────────────────────────────────────────────
 app.include_router(transactions.router)
+app.include_router(auth.router)
 
 # ── Handler global de excepciones ────────────────────────────────────
 @app.exception_handler(FraudMotorException)

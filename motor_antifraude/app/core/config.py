@@ -24,9 +24,15 @@ class Settings(BaseSettings):
     # HMAC para firma de respuestas del motor
     FRAUD_HMAC_SECRET: str = "dev-secret-change-in-production"
 
-    # CORS — lista de orígenes permitidos separados por coma en el .env
-    # Ejemplo en .env: ALLOWED_ORIGINS=http://localhost:3000,http://localhost:5173
+    # CORS
     ALLOWED_ORIGINS: list[str] = ["http://localhost:3000", "http://localhost:5173"]
+
+    # Email SMTP (Gmail)
+    SMTP_HOST: str = "smtp.gmail.com"
+    SMTP_PORT: int = 587
+    SMTP_USER: str
+    SMTP_PASSWORD: str
+    EMAIL_FROM: str
 
     # APIs externas
     EXTERNAL_API_KEY: str | None = None
@@ -34,7 +40,6 @@ class Settings(BaseSettings):
     @field_validator("ALLOWED_ORIGINS", mode="before")
     @classmethod
     def parse_origins(cls, v):
-        """Permite definir ALLOWED_ORIGINS como string separado por comas en .env"""
         if isinstance(v, str):
             return [origin.strip() for origin in v.split(",")]
         return v
@@ -47,4 +52,4 @@ class Settings(BaseSettings):
     )
 
 
-settings = Settings()
+settings = Settings()   
