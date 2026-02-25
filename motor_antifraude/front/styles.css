@@ -1,0 +1,37 @@
+/* Ajustes suaves para dar sensación más premium sin romper Tailwind */
+
+/* Sombra interior muy ligera para el textarea */
+.shadow-inner-sm {
+    box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.08);
+  }
+  
+  /* Animación de spin más lenta para el estado inicial */
+  .animate-spin-slow {
+    animation: spin 1.5s linear infinite;
+  }
+  
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+  
+  /* Scrollbar discreto (solo navegadores que lo soportan) */
+  textarea::-webkit-scrollbar {
+    width: 6px;
+  }
+  
+  textarea::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  
+  textarea::-webkit-scrollbar-thumb {
+    background-color: rgba(148, 163, 184, 0.7);
+    border-radius: 999px;
+  }
+  
+  /* Suavizado de fuentes */
+  body {
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
