@@ -33,8 +33,8 @@ from typing import Callable
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.types import ASGIApp
 
+from app.core.config import settings
 from app.services.external_apis import geoip_client, bin_lookup_client
 
 logger = logging.getLogger(__name__)
@@ -200,8 +200,17 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
             "max-age=31536000; includeSubDomains"
         )
 
-        # Política de contenido: solo recursos del mismo origen
-        response.headers["Content-Security-Policy"] = "default-src 'self'"
+        # CSP: permisivo en desarrollo (Swagger necesita CDN externos)
+        # Estricto en producción (solo mismo origen)
+        if settings.DEBUG:
+            response.headers["Content-Security-Policy"] = (
+                "default-src 'self' https://cdn.jsdelivr.net https://fastapi.tiangolo.com; "
+                "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
+                "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
+                "img-src 'self' data: https://fastapi.tiangolo.com"
+            )
+        else:
+            response.headers["Content-Security-Policy"] = "default-src 'self'"
 
         # No enviar el referrer a otros dominios
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
