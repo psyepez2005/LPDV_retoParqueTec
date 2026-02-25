@@ -3,12 +3,10 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    # Configuracion general
     ENVIRONMENT: str = "development"
     DEBUG: bool = False
     SECRET_KEY: str
 
-    # PostgreSQL
     POSTGRES_USER: str
     POSTGRES_PASSWORD: str
     POSTGRES_DB: str
@@ -16,25 +14,20 @@ class Settings(BaseSettings):
     POSTGRES_PORT: int = 5432
     DATABASE_URL: str
 
-    # Redis
     REDIS_HOST: str
     REDIS_PORT: int = 6379
     REDIS_URL: str
 
-    # HMAC para firma de respuestas del motor
     FRAUD_HMAC_SECRET: str = "dev-secret-change-in-production"
 
-    # CORS
     ALLOWED_ORIGINS: list[str] = ["http://localhost:3000", "http://localhost:5173"]
 
-    # Email SMTP (Gmail)
     SMTP_HOST: str = "smtp.gmail.com"
     SMTP_PORT: int = 587
     SMTP_USER: str
     SMTP_PASSWORD: str
     EMAIL_FROM: str
 
-    # APIs externas
     EXTERNAL_API_KEY: str | None = None
 
     @field_validator("ALLOWED_ORIGINS", mode="before")

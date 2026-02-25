@@ -1,12 +1,3 @@
-"""
-exceptions.py
--------------
-Excepciones personalizadas del Motor Antifraude.
-
-Todas heredan de FraudMotorException para poder capturarlas
-en un solo handler global en main.py.
-"""
-
 
 class FraudMotorException(Exception):
     """Base de todas las excepciones del motor."""
@@ -18,10 +9,6 @@ class FraudMotorException(Exception):
         super().__init__(self.message)
 
 
-# ─────────────────────────────────────────────────────────────────────
-# Errores de validación y payload
-# ─────────────────────────────────────────────────────────────────────
-
 class InvalidPayloadException(FraudMotorException):
     status_code = 422
     message = "Payload de transacción inválido."
@@ -31,10 +18,6 @@ class MissingEnrichedDataException(FraudMotorException):
     status_code = 422
     message = "No se pudo obtener información geográfica para evaluar la transacción."
 
-
-# ─────────────────────────────────────────────────────────────────────
-# Errores de autenticación y JWT
-# ─────────────────────────────────────────────────────────────────────
 
 class InvalidTokenException(FraudMotorException):
     """El JWT es inválido o expiró."""
@@ -72,10 +55,6 @@ class FaceNotDetectedException(FraudMotorException):
     message = "No se detectó un rostro claro en la foto. Por favor sube una foto frontal con buena iluminación."
 
 
-# ─────────────────────────────────────────────────────────────────────
-# Errores de OTP
-# ─────────────────────────────────────────────────────────────────────
-
 class OtpExpiredException(FraudMotorException):
     status_code = 400
     message = "El código de verificación ha expirado. Solicita uno nuevo."
@@ -96,10 +75,6 @@ class OtpAlreadyUsedException(FraudMotorException):
     message = "Este código de verificación ya fue utilizado."
 
 
-# ─────────────────────────────────────────────────────────────────────
-# Errores de transacción
-# ─────────────────────────────────────────────────────────────────────
-
 class TransactionBlockedException(FraudMotorException):
     status_code = 403
     message = "Operación declinada por políticas de seguridad."
@@ -115,10 +90,6 @@ class BlacklistHitException(FraudMotorException):
     message = "Operación no permitida."
 
 
-# ─────────────────────────────────────────────────────────────────────
-# Errores de infraestructura
-# ─────────────────────────────────────────────────────────────────────
-
 class RedisUnavailableException(FraudMotorException):
     status_code = 503
     message = "Servicio temporalmente no disponible. Intenta en unos momentos."
@@ -133,10 +104,6 @@ class ExternalApiUnavailableException(FraudMotorException):
     status_code = 503
     message = "No se pudo completar la verificación externa. Intenta nuevamente."
 
-
-# ─────────────────────────────────────────────────────────────────────
-# Errores de cifrado
-# ─────────────────────────────────────────────────────────────────────
 
 class EncryptionException(FraudMotorException):
     status_code = 500
