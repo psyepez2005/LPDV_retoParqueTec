@@ -48,7 +48,10 @@ from app.domain.schemas import (
     ActionDecision,
     ChallengeType,
 )
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.infrastructure.cache.redis_client import redis_manager
+from app.infrastructure.database.audit_repository import AuditRepository
 from app.services.topup_rules import TopUpRulesEngine
 from app.services.blacklist_service import BlacklistService, BlacklistType
 from app.services.trust_score import TrustScoreService
@@ -104,7 +107,9 @@ class FraudOrchestrator:
     # ------------------------------------------------------------------ #
 
     async def evaluate_transaction(
-        self, payload: TransactionPayload
+        self,
+        payload: TransactionPayload,
+        db: Optional[AsyncSession] = None,
     ) -> FraudEvaluationResponse:
         """
         Evalúa una transacción y retorna una decisión accionable.
@@ -332,6 +337,8 @@ class FraudOrchestrator:
                 final_score = final_score,
                 action      = action,
                 p2p_result  = p2p_result,
+                response    = response,
+                db          = db,
             )
         )
 
@@ -616,10 +623,12 @@ class FraudOrchestrator:
 
     async def _background_updates(
         self,
-        payload: TransactionPayload,
+        payload:     TransactionPayload,
         final_score: int,
-        action: ActionDecision,
+        action:      ActionDecision,
         p2p_result,
+        response:    Optional["FraudEvaluationResponse"] = None,
+        db:          Optional[AsyncSession] = None,
     ) -> None:
         """
         Actualiza todos los contadores y perfiles en Redis después de
@@ -680,6 +689,15 @@ class FraudOrchestrator:
                         amount       = float(payload.amount),
                         currency     = payload.currency,
                     )
+
+            # ── Persistir auditoría en PostgreSQL ────────────────────
+            if db is not None and response is not None:
+                await AuditRepository(db).save_evaluation(
+                    payload     = payload,
+                    final_score = final_score,
+                    action      = action,
+                    response    = response,
+                )
 
         except Exception as e:
             logger.error(
