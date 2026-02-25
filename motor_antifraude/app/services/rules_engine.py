@@ -60,7 +60,7 @@ class FraudOrchestrator:
 
     async def _evaluate_kyc_device(self, payload: TransactionPayload) -> float:
         await asyncio.sleep(0.02)
-        score = 0.0
+        score = 0.0     
         user_agent_lower = payload.user_agent.lower()
         
         # Deteccion basica de emuladores y automatizacion
