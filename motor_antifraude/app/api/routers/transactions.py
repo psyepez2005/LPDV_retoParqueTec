@@ -1,5 +1,8 @@
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Depends, Request
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.api.dependencies import get_db_session
 from app.domain.schemas import TransactionPayload, FraudEvaluationResponse
 from app.services.fraud_orchestrator import fraud_orchestrator
 
@@ -8,8 +11,9 @@ router = APIRouter(prefix="/v1/transactions", tags=["Transactions"])
 
 @router.post("/evaluate", response_model=FraudEvaluationResponse)
 async def evaluate_transaction(
-    payload: TransactionPayload,
-    request: Request,
+    payload:  TransactionPayload,
+    request:  Request,
+    db:       AsyncSession = Depends(get_db_session),
 ) -> FraudEvaluationResponse:
 
 
@@ -21,5 +25,5 @@ async def evaluate_transaction(
     object.__setattr__(payload, "card_type",   getattr(request.state, "card_type",   "unknown"))
     object.__setattr__(payload, "card_brand",  getattr(request.state, "card_brand",  "unknown"))
 
-    response = await fraud_orchestrator.evaluate_transaction(payload)
+    response = await fraud_orchestrator.evaluate_transaction(payload, db=db)
     return response

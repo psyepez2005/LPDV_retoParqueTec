@@ -93,7 +93,7 @@ class AuthService:
         )
 
         db.add(user)
-        await db.flush()
+        await db.commit()
 
         logger.info(f"[Auth] Usuario registrado: {email} (id={user.id})")
 
