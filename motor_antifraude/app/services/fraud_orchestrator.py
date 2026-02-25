@@ -75,76 +75,110 @@ _EXACT_CATALOG: dict[str, tuple[int, str, str]] = {
     # (puntos, categoría, descripción)
 
     # ── Blacklist ─────────────────────────────────────────────────────
-    "BLACKLIST_USER_HIT":        (100, "Lista negra",   "El usuario está en lista negra permanente."),
-    "BLACKLIST_DEVICE_HIT":      (100, "Lista negra",   "El dispositivo está en lista negra permanente."),
-    "BLACKLIST_IP_HIT":          (100, "Lista negra",   "La IP está en lista negra permanente."),
-    "BLACKLIST_CARD_HIT":        (100, "Lista negra",   "El BIN de la tarjeta está bloqueado."),
+    "BLACKLIST_USER_HIT":              (100, "Lista negra",    "El usuario está en lista negra permanente."),
+    "BLACKLIST_DEVICE_HIT":            (100, "Lista negra",    "El dispositivo está en lista negra permanente."),
+    "BLACKLIST_IP_HIT":                (100, "Lista negra",    "La IP está en lista negra permanente."),
+    "BLACKLIST_CARD_HIT":              (100, "Lista negra",    "El BIN de la tarjeta está bloqueado."),
 
     # ── Velocidad / rate limit ────────────────────────────────────────
-    "IP_RATE_HIGH":              (15,  "Velocidad",     "La IP ha hecho muchas peticiones en 60 segundos (posible bot o ataque)."),
-    "IP_RATE_EXTREME":           (30,  "Velocidad",     "La IP supera el límite crítico de peticiones — ataque en curso probable."),
-    "USER_RATE_HIGH":            (15,  "Velocidad",     "El usuario ha realizado muchas transacciones en 5 minutos."),
-    "USER_RATE_EXTREME":         (35,  "Velocidad",     "El usuario supera el límite crítico — secuencia de cargos masivos."),
+    "IP_RATE_HIGH":                    (15,  "Velocidad",      "La IP ha hecho muchas peticiones en 60s — posible bot."),
+    "IP_RATE_ELEVATED":                (10,  "Velocidad",      "La IP supera el umbral moderado de peticiones — actividad inusual."),
+    "IP_RATE_EXTREME":                 (30,  "Velocidad",      "La IP supera el límite crítico — ataque en curso probable."),
+    "USER_RATE_HIGH":                  (15,  "Velocidad",      "El usuario realizó muchas transacciones en 5 minutos."),
+    "USER_RATE_ELEVATED":              (8,   "Velocidad",      "El usuario supera el umbral moderado de transacciones por minuto."),
+    "USER_RATE_EXTREME":               (35,  "Velocidad",      "El usuario supera el límite crítico — cargos masivos."),
+    "HIGH_VELOCITY_OR_LIMIT_EXCEEDED": (20,  "Velocidad",      "El usuario supera los límites de recarga o hay alta frecuencia de envíos."),
 
-    # ── Dispositivo y KYC ────────────────────────────────────────────
-    "EMULATOR_OR_ROOT_DETECTED": (25,  "Dispositivo",   "Se detectó emulador o dispositivo rooteado, técnica usada para fraude."),
-    "SUSPICIOUS_DEVICE_FINGERPRINT": (15, "Dispositivo", "El fingerprint del dispositivo es anómalo o inconsistente."),
-    "HIGH_VELOCITY_OR_LIMIT_EXCEEDED": (20, "Velocidad", "El usuario supera los límites de recarga o hay alta frecuencia de envíos."),
+    # ── Dispositivo ─────────────────────────────────────────────────
+    "EMULATOR_OR_ROOT_DETECTED":       (25,  "Dispositivo",    "Se detectó emulador o dispositivo rooteado — técnica común de fraude."),
+    "SUSPICIOUS_DEVICE_FINGERPRINT":   (15,  "Dispositivo",    "El fingerprint del dispositivo es anómalo o inconsistente."),
 
-    # ── Comportamiento ────────────────────────────────────────────────
-    "LEARNING_PERIOD_ACTIVE":    (0,   "Comportamiento", "El usuario aún tiene historial limitado — los umbrales de comportamiento son más permisivos."),
-    "PROFILE_CHANGED_LAST_24H": (25,  "Comportamiento", "El perfil (email o teléfono) fue modificado en las últimas 24h — señal de account takeover."),
-    "PAYDAY_WINDOW_REDUCTION":   (0,   "Comportamiento", "Día de quincena: el monto alto es estadisticamente normal, no penalizado."),
-    "P2P_NEW_RECIPIENT_FIRST_TX":(10,  "Comportamiento", "Primer pago a este destinatario — relación nueva sin historial de confianza."),
+    # ── Comportamiento ────────────────────────────────────────────
+    "LEARNING_PERIOD_ACTIVE":          (0,   "Comportamiento", "Usuario con historial limitado — umbrales más permisivos."),
+    "PROFILE_CHANGED_LAST_24H":        (25,  "Comportamiento", "El perfil fue modificado en las últimas 24h — señal de account takeover."),
+    "PAYDAY_WINDOW_REDUCTION":         (0,   "Comportamiento", "Día de quincena — monto alto normal, no penalizado."),
+    "P2P_NEW_RECIPIENT_FIRST_TX":      (10,  "Comportamiento", "Primer pago a este destinatario — sin historial de confianza."),
 
     # ── Historial del usuario (payload) ──────────────────────────────
-    "ACCOUNT_AGE_VERY_NEW":     (20,  "Historial",     "La cuenta tiene menos de 7 días — periodo de mayor riesgo estadístico."),
-    "ACCOUNT_AGE_NEW":          (10,  "Historial",     "La cuenta tiene menos de 30 días — historial insuficiente."),
-    "AMOUNT_3X_ABOVE_AVERAGE":  (20,  "Historial",     "El monto es más de 3 veces el promedio mensual del usuario."),
-    "HIGH_FAILED_TX_LAST_7D":   (25,  "Historial",     "5 o más transacciones fallidas en los últimos 7 días — patrón de fraude activo."),
-    "FAILED_TX_LAST_7D":        (10,  "Historial",     "3 o más transacciones fallidas en los últimos 7 días."),
-    "HIGH_AMOUNT_NO_KYC":       (15,  "Historial",     "Monto alto con KYC no completado — riesgo regulatorio y de fraude."),
-    "INTERNATIONAL_CARD":       (10,  "Historial",     "Tarjeta emitida en el extranjero — mayor riesgo de fraude cross-border."),
+    "ACCOUNT_AGE_VERY_NEW":            (20,  "Historial",      "Cuenta con menos de 7 días — mayor riesgo estadístico."),
+    "ACCOUNT_AGE_NEW":                 (10,  "Historial",      "Cuenta con menos de 30 días — historial insuficiente."),
+    "AMOUNT_3X_ABOVE_AVERAGE":         (20,  "Historial",      "El monto es más de 3× el promedio mensual del usuario."),
+    "HIGH_FAILED_TX_LAST_7D":          (25,  "Historial",      "5+ transacciones fallidas en 7 días — patrón de fraude activo."),
+    "FAILED_TX_LAST_7D":               (10,  "Historial",      "3+ transacciones fallidas en los últimos 7 días."),
+    "HIGH_AMOUNT_NO_KYC":              (15,  "Historial",      "Monto alto con KYC no completado — riesgo regulatorio y de fraude."),
+    "INTERNATIONAL_CARD":              (10,  "Historial",      "Tarjeta emitida en el extranjero — mayor riesgo cross-border."),
 
     # ── Sesión ───────────────────────────────────────────────────────
-    "SESSION_REPLAY_ATTACK":    (40,  "Sesión",       "El session_id ya fue usado anteriormente — posible replay attack."),
-    "SESSION_HIJACK_DETECTED":  (100, "Sesión",       "El session_id pertenece a otro usuario — session hijacking confirmado."),
+    "SESSION_REPLAY_ATTACK":           (40,  "Sesión",         "El session_id ya fue usado — posible replay attack."),
+    "SESSION_HIJACK_DETECTED":         (100, "Sesión",         "El session_id pertenece a otro usuario — session hijacking confirmado."),
 
     # ── IP History ────────────────────────────────────────────────────
-    "IP_COUNTRY_JUMP_30MIN":    (25,  "IP History",   "El país de la IP cambió en menos de 30 minutos — posible VPN o cuenta compartida."),
-    "IMPOSSIBLE_IP_JUMP_5MIN":  (50,  "IP History",   "Cambio de país de IP en menos de 5 minutos — físicamente imposible, fráude cl aro."),
+    "IP_COUNTRY_JUMP_30MIN":           (25,  "IP History",     "El país de la IP cambió en < 30 min — posible VPN o cuenta compartida."),
+    "IMPOSSIBLE_IP_JUMP_5MIN":         (50,  "IP History",     "Cambio de país de IP en < 5 min — físicamente imposible."),
 
-    # ── GPS vs IP ────────────────────────────────────────────────────
-    "HIGH_RISK_IP_COUNTRY_RU":  (10,  "Geolocalización", "La IP proviene de Rusia, país con alto índice de fraude en pagos."),
-    "HIGH_RISK_IP_COUNTRY_CN":  (10,  "Geolocalización", "La IP proviene de China."),
-    "HIGH_RISK_IP_COUNTRY_KP":  (10,  "Geolocalización", "La IP proviene de Corea del Norte."),
-    "HIGH_RISK_IP_COUNTRY_IR":  (10,  "Geolocalización", "La IP proviene de Irán."),
-    "HIGH_RISK_IP_COUNTRY_NG":  (10,  "Geolocalización", "La IP proviene de Nigeria."),
+    # ── Geolocalización (GeoAnalyzer) ─────────────────────────────────
+    "GPS_OBFUSCATED_ZERO_COORDS":      (20,  "Geolocalización","Coordenadas GPS en (0,0) — posible ocultamiento de ubicación real."),
+    "TRAVELER_MODE_ACTIVE":            (0,   "Geolocalización","Modo viajero activo — ubicación inusual esperada, no penalizado."),
+    "DUAL_COUNTRY_MISMATCH":           (20,  "Geolocalización","El país de la IP y el GPS no coinciden — posible VPN activa."),
+    "TRIPLE_COUNTRY_MISMATCH":         (35,  "Geolocalización","IP, GPS y país registrado no coinciden — alta probabilidad de fraude."),
+    "IMPOSSIBLE_TRAVEL_DETECTED":      (50,  "Geolocalización","El usuario aparece en dos ubicaciones físicamente imposibles."),
+    "IMPOSSIBLE_TRAVEL":               (50,  "Geolocalización","Viaje físicamente imposible entre la ubicación anterior y la actual."),
+    "VPN_DETECTED":                    (20,  "Geolocalización","Se detectó uso de VPN o proxy."),
+    "ML_GEO_ANOMALY":                  (30,  "Geolocalización","Modelo ML detectó anomalía geográfica en el patrón de movimiento."),
 
-    # ── Card Testing ─────────────────────────────────────────────────
-    "NIGHT_TX_NEW_ACCOUNT":     (10,  "Hora / Patrón", "Transacción de madrugada en una cuenta nueva — patrón de fraude frecuente."),
+    # ── GPS vs IP (gps_ip_mismatch.py) ──────────────────────────────
+    "HIGH_RISK_IP_COUNTRY_RU":         (10,  "Geolocalización","La IP proviene de Rusia — alto índice de fraude en pagos."),
+    "HIGH_RISK_IP_COUNTRY_CN":         (10,  "Geolocalización","La IP proviene de China."),
+    "HIGH_RISK_IP_COUNTRY_KP":         (10,  "Geolocalización","La IP proviene de Corea del Norte."),
+    "HIGH_RISK_IP_COUNTRY_IR":         (10,  "Geolocalización","La IP proviene de Irán."),
+    "HIGH_RISK_IP_COUNTRY_NG":         (10,  "Geolocalización","La IP proviene de Nigeria."),
 
-    # ── Geo ───────────────────────────────────────────────────────────
-    "ML_GEO_ANOMALY":           (30,  "Geolocalización", "Modelo ML detectó anomalía geográfica en el patrón de movimiento."),
-    "IMPOSSIBLE_TRAVEL":        (50,  "Geolocalización", "El usuario aparece en dos ubicaciones imposibles de alcanzar en el tiempo transcurrido."),
-    "FIRST_TX_THIS_COUNTRY":    (15,  "Geolocalización", "Primera transacción desde este país — comportamiento nuevo."),
-    "HIGH_RISK_COUNTRY":        (25,  "Geolocalización", "País de alto riesgo para pagos electrónicos."),
-    "VPN_DETECTED":             (20,  "Geolocalización", "Se detectó uso de VPN o proxy."),
+    # ── Hora / Patrón ───────────────────────────────────────────────
+    "NIGHT_TX_NEW_ACCOUNT":            (10,  "Hora / Patrón",  "Transacción de madrugada en cuenta nueva — patrón frecuente de fraude."),
+
+    # ── P2P Analyzer ─────────────────────────────────────────────────
+    "PREVENTIVE_HOLD_NEW_ACCOUNT":     (10,  "P2P",             "Retención preventiva 24h — receptor nuevo recibiendo monto alto."),
+
+    # ── Orquestador — overrides ────────────────────────────────────
+    "OVERRIDE_IMPOSSIBLE_TRAVEL":      (100, "Override",        "Override: viaje imposible confirmado — score forzado a máximo."),
+    "OVERRIDE_MULE_PATTERN_CONFIRMED": (100, "Override",        "Override: patrón de cuenta mula confirmado — score forzado a máximo."),
 }
 
 _PREFIX_CATALOG: dict[str, tuple[int, str, str]] = {
-    "GPS_IP_COUNTRY_MISMATCH_":  (30, "Geolocalización", "El GPS dice estar en un país diferente al de la IP — posible VPN activa."),
-    "AMOUNT_":                   (25, "Comportamiento",  "El monto de la transacción supera significativamente el promedio histórico del usuario."),
-    "UNUSUAL_HOUR_":             (15, "Hora / Patrón",  "El usuario nunca había realizado una transacción en esta hora del día."),
-    "TX_WITHIN_":                (15, "Comportamiento",  "Login seguido inmediatamente de una transacción — patrón de bot o sesión secuestrada."),
-    "CURRENCY_CHANGE_":          (12, "Comportamiento",  "La moneda usada es diferente a la habitual del usuario."),
-    "FIRST_WEEK_USER_DAY_":      (10, "Historial",       "Primera semana de la cuenta — período de mayor riesgo estadístico."),
-    "P2P_FREQUENT_RECIPIENT_":   (0,  "Comportamiento",  "Destinatario con historial de pagos exitosos — riesgo reducido."),
-    "UNUSUAL_HOUR_":             (15, "Hora / Patrón",  "El usuario nunca había realizado una transacción en esta hora del día."),
-    "CARD_TESTING_PATTERN_":     (40, "Card Testing",    "Se detectaron varias micro-transacciones de sondeo seguidas de un monto grande (card testing)."),
-    "RAPID_BIN_PROBE_":          (35, "Card Testing",    "Múltiples transacciones con el mismo BIN en menos de 10 minutos — ataque de carding."),
-    "UNUSUAL_HOUR_":             (15, "Hora / Patrón",  "El usuario nunca había sido activo en esta hora del día."),
+    # Prefijo → (puntos, categoría, descripción)
+    # IMPORTANTE: sin duplicados de clave. Python solo guarda la última.
+
+    # Geolocalización (GeoAnalyzer) — códigos con sufijo de país/distancia
+    "GPS_IP_COUNTRY_MISMATCH_":        (30,  "Geolocalización","GPS indica país diferente al de la IP — posible VPN activa."),
+    "GPS_IP_DISTANCE_":                (20,  "Geolocalización","Distancia GPS↔IP inusualmente alta — el dispositivo no está donde dice ser."),
+    "NEW_COUNTRY_":                    (15,  "Geolocalización","Primera transacción desde este país para este usuario."),
+    "KNOWN_COUNTRY_REDUCTION_":        (-10, "Geolocalización","País conocido del usuario — reducción por historial positivo."),
+    "HIGH_RISK_COUNTRY_":              (25,  "Geolocalización","País de alto riesgo para pagos electrónicos."),
+    "HIGH_RISK_IP_COUNTRY_":           (10,  "Geolocalización","IP proveniente de país con alto índice de fraude."),
+
+    # Card Testing
+    "CARD_TESTING_PATTERN_":           (40,  "Card Testing",   "Micro-tx de sondeo seguidas de monto grande (card testing)."),
+    "RAPID_BIN_PROBE_":                (35,  "Card Testing",   "Múltiples tx con el mismo BIN en < 10 min — ataque de carding."),
+
+    # Comportamiento (BehaviorEngine)
+    "TX_WITHIN_":                      (15,  "Comportamiento", "Login seguido inmediatamente de tx — patrón de bot o sesión secuestrada."),
+    "CURRENCY_CHANGE_":                (12,  "Comportamiento", "La moneda usada es diferente a la habitual del usuario."),
+    "FIRST_WEEK_USER_DAY_":            (10,  "Historial",      "Primera semana de la cuenta — mayor riesgo estadístico."),
+    "P2P_FREQUENT_RECIPIENT_":         (-8,  "Comportamiento", "Destinatario frecuente con historial positivo — riesgo reducido."),
+    "UNUSUAL_HOUR_":                   (15,  "Hora / Patrón",  "El usuario nunca había sido activo en esta hora del día."),
+    "AMOUNT_":                         (20,  "Comportamiento", "El monto supera significativamente el promedio histórico del usuario."),
+
+    # P2P Analyzer — códigos con sufijos dinámicos de contadores
+    "RECIPIENT_ACCOUNT_AGE_":          (20,  "P2P",            "El receptor tiene cuenta muy nueva — posible cuenta mula recién creada."),
+    "RECIPIENT_HIGH_RISK_SCORE_":      (15,  "P2P",            "El receptor tiene historial de riesgo alto — el riesgo se propaga entre nodos."),
+    "FANOUT_HIGH_1H_":                 (30,  "P2P",            "El emisor envió a muchos destinatarios distintos en 1h — distribución de fondos robados."),
+    "FANOUT_MEDIUM_24H_":              (15,  "P2P",            "Fan-out moderado en 24h — múltiples destinatarios distintos."),
+    "RECIPIENT_FANIN_HIGH_1H_":        (25,  "P2P",            "El receptor recibe de muchas fuentes en 1h — señal fuerte de cuenta mula."),
+    "RECIPIENT_FANIN_HIGH_24H_":       (12,  "P2P",            "Fan-in moderado en 24h — el receptor acumula fondos de muchas fuentes."),
+    "SMURFING_DAILY_VOL_":             (35,  "P2P",            "Patrón de smurfing: micro-tx acumuladas bajo el umbral regulatorio."),
+    "RAPID_DRAIN_":                    (40,  "P2P",            "El receptor drenó su saldo en < 2h — firma definitiva de cuenta mula."),
 }
+
 
 
 def _build_breakdown(reason_codes: list[str]) -> list:

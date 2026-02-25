@@ -51,7 +51,12 @@ class SessionGuard:
                 return result
 
             # La sesión ya existe — checar si es del mismo usuario
-            existing_user = await redis.get(key)
+            existing_user_raw = await redis.get(key)
+            existing_user = (
+                existing_user_raw.decode()
+                if isinstance(existing_user_raw, bytes)
+                else existing_user_raw
+            )
 
             if existing_user == user_id:
                 # Mismo usuario reutilizando session_id → replay attack
@@ -69,6 +74,7 @@ class SessionGuard:
                     f"[SessionGuard] HIJACK session={session_id} "
                     f"owner={existing_user} attacker={user_id}"
                 )
+
 
         except Exception as e:
             logger.error(f"[SessionGuard] Redis error: {e}")
