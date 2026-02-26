@@ -103,7 +103,10 @@ class TransactionPayload(BaseModel):
     kyc_level:                 KycLevel          = KycLevel.NONE
 
     # ── Contexto de sesión / red (opcionales) ─────────────────────────
-    session_duration_seconds: Optional[int] = Field(None, ge=0)
+    session_duration_seconds:  Optional[int] = Field(None, ge=0)
+    # Tiempo (segundos) que el usuario tardó en llenar el formulario de pago.
+    # < 3s → scripting/bot, > 900s → sesión abandonada o reutilizada.
+    form_fill_time_seconds:    Optional[int] = Field(None, ge=0)
 
     # ── Contexto de tarjeta / pago (opcionales) ───────────────────────
     card_last4:           Optional[str]             = Field(None, min_length=4, max_length=4)

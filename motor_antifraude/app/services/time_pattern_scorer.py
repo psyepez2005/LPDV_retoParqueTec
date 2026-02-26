@@ -29,7 +29,6 @@ logger = logging.getLogger(__name__)
 _BITMAP_TTL    = 60 * 60 * 24 * 90   # 90 días
 _COUNT_TTL     = 60 * 60 * 24 * 90
 _MIN_TX_BEFORE_PENALIZING = 10        # calibración mínima
-_NIGHT_HOURS   = {0, 1, 2, 3, 4, 5}  # 00:00 – 05:59
 
 
 @dataclass
@@ -49,7 +48,6 @@ class TimePatternScorer:
     async def score(
         self,
         user_id:      str,
-        account_age_days: int | None = None,
     ) -> TimePatternResult:
         result = TimePatternResult()
         redis  = redis_manager.client
@@ -85,12 +83,6 @@ class TimePatternScorer:
                         f"for first time (tx_count={tx_count})"
                     )
 
-                # Penalización adicional: madrugada + cuenta nueva
-                if hour in _NIGHT_HOURS:
-                    age = account_age_days if account_age_days is not None else 999
-                    if age < 7:
-                        result.penalty += 10
-                        result.reason_codes.append("NIGHT_TX_NEW_ACCOUNT")
 
             # Actualizar: setear el bit de la hora actual + incrementar contador
             pipe = redis.pipeline()

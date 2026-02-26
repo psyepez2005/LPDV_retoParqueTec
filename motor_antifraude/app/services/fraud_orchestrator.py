@@ -67,12 +67,7 @@ from app.services.time_pattern_scorer import time_pattern_scorer
 
 logger = logging.getLogger(__name__)
 
-# ─────────────────────────────────────────────────────────────────────
-# Catálogo de reason codes — mapea cada código a su explicación
-# El mapa usa prefijos para códigos dinámicos (los que terminan en _N)
-# ─────────────────────────────────────────────────────────────────────
 _EXACT_CATALOG: dict[str, tuple[int, str, str]] = {
-    # (puntos, categoría, descripción)
 
     # ── Blacklist ─────────────────────────────────────────────────────
     "BLACKLIST_USER_HIT":              (100, "Lista negra",    "El usuario está en lista negra permanente."),
@@ -136,6 +131,11 @@ _EXACT_CATALOG: dict[str, tuple[int, str, str]] = {
     # ── Hora / Patrón ───────────────────────────────────────────────
     "NIGHT_TX_NEW_ACCOUNT":            (10,  "Hora / Patrón",  "Transacción de madrugada en cuenta nueva — patrón frecuente de fraude."),
 
+    # ── Tiempo de llenado del formulario ─────────────────────────────
+    "FORM_FILL_INSTANT":               (30,  "Comportamiento", "Formulario llenado en < 3s — velocidad inhumana, posible scripting o bot."),
+    "FORM_FILL_VERY_FAST":             (15,  "Comportamiento", "Formulario llenado en 3–8s — inusualmente rápido para un humano."),
+    "FORM_FILL_VERY_SLOW":             (10,  "Comportamiento", "Formulario llenado en > 15min — posible sesión reutilizada o abandonada."),
+
     # ── P2P Analyzer ─────────────────────────────────────────────────
     "PREVENTIVE_HOLD_NEW_ACCOUNT":     (10,  "P2P",             "Retención preventiva 24h — receptor nuevo recibiendo monto alto."),
 
@@ -145,10 +145,6 @@ _EXACT_CATALOG: dict[str, tuple[int, str, str]] = {
 }
 
 _PREFIX_CATALOG: dict[str, tuple[int, str, str]] = {
-    # Prefijo → (puntos, categoría, descripción)
-    # IMPORTANTE: sin duplicados de clave. Python solo guarda la última.
-
-    # Geolocalización (GeoAnalyzer) — códigos con sufijo de país/distancia
     "GPS_IP_COUNTRY_MISMATCH_":        (30,  "Geolocalización","GPS indica país diferente al de la IP — posible VPN activa."),
     "GPS_IP_DISTANCE_":                (20,  "Geolocalización","Distancia GPS↔IP inusualmente alta — el dispositivo no está donde dice ser."),
     "NEW_COUNTRY_":                    (15,  "Geolocalización","Primera transacción desde este país para este usuario."),
@@ -181,10 +177,65 @@ _PREFIX_CATALOG: dict[str, tuple[int, str, str]] = {
 
 
 
-def _build_breakdown(reason_codes: list[str]) -> list:
+def _get_catalog_entry(code: str) -> tuple[int, str, str] | None:
+    """Devuelve (points, category, description) del catálogo para un código dado."""
+    if code in _EXACT_CATALOG:
+        return _EXACT_CATALOG[code]
+    for prefix, data in _PREFIX_CATALOG.items():
+        if code.startswith(prefix):
+            return data
+    return None
+
+
+def _distribute_to_contributions(
+    contributions: dict[str, int],
+    codes: list[str],
+    total: int,
+) -> None:
     """
-    Convierte una lista de reason_codes en ScoreEntry explicadas.
-    Resuelve primero por código exacto, luego por prefijo.
+    Reparte `total` puntos reales entre `codes` de forma proporcional
+    a sus pesos en el catálogo. Si no hay pesos positivos, reparto
+    equitativo. Los códigos con peso 0 en catálogo NO reciben puntos.
+    """
+    if not codes or total == 0:
+        return
+
+    weights: list[int] = []
+    for code in codes:
+        entry = _get_catalog_entry(code)
+        weights.append(max(entry[0], 0) if entry else 1)
+
+    total_w = sum(weights)
+    if total_w == 0:
+        # Todos son informativos (peso 0) — nada que distribuir
+        return
+
+    remaining = total
+    distributed_any = False
+    for i, code in enumerate(codes):
+        if weights[i] == 0:
+            # Código informativo — no le asignamos puntos reales
+            contributions.setdefault(code, 0)
+            continue
+        if i == len(codes) - 1 or (i == len(codes) - 2 and all(w == 0 for w in weights[i+1:])):
+            # Último código con peso positivo recibe el resto
+            contributions[code] = contributions.get(code, 0) + remaining
+            distributed_any = True
+        else:
+            share = round(total * weights[i] / total_w)
+            contributions[code] = contributions.get(code, 0) + share
+            remaining -= share
+            distributed_any = True
+
+
+def _build_breakdown(
+    reason_codes: list[str],
+    contributions: dict[str, int] | None = None,
+) -> list:
+    """
+    Construye el score_breakdown.
+    Si se provee `contributions`, usa los puntos REALES de ese dict.
+    De lo contrario, usa los puntos de referencia del catálogo.
     """
     from app.domain.schemas import ScoreEntry
     entries = []
@@ -194,36 +245,29 @@ def _build_breakdown(reason_codes: list[str]) -> list:
             continue
         seen.add(code)
 
-        if code in _EXACT_CATALOG:
-            pts, cat, desc = _EXACT_CATALOG[code]
+        # Puntos reales si están disponibles, si no fallback al catálogo
+        real_pts = contributions.get(code) if contributions is not None else None
+
+        entry = _get_catalog_entry(code)
+        if entry:
+            catalog_pts, cat, desc = entry
+            pts = real_pts if real_pts is not None else catalog_pts
             entries.append(ScoreEntry(code=code, points=pts, category=cat, description=desc))
             continue
 
-        matched = False
-        for prefix, (pts, cat, desc) in _PREFIX_CATALOG.items():
-            if code.startswith(prefix):
-                entries.append(ScoreEntry(code=code, points=pts, category=cat, description=desc))
-                matched = True
-                break
+        # Código desconocido
+        pts = real_pts if real_pts is not None else 0
+        entries.append(ScoreEntry(
+            code=code,
+            points=pts,
+            category="Otro",
+            description=f"Señal detectada: {code.replace('_', ' ').lower()}.",
+        ))
 
-        if not matched:
-            # Código desconocido — incluirlo igual pero sin explicación detallada
-            entries.append(ScoreEntry(
-                code=code,
-                points=0,
-                category="Otro",
-                description=f"Señal detectada: {code.replace('_', ' ').lower()}.",
-            ))
-
-    # Ordenar por puntos desc para que las señales más graves sean primeras
     entries.sort(key=lambda e: e.points, reverse=True)
     return entries
 
 
-# ── Clave HMAC ────────────────────────────────────────────────────────
-# En producción cargar desde KMS o secret manager, nunca hardcodeada.
-# La variable de entorno FRAUD_HMAC_SECRET debe estar cifrada en el
-# sistema de secretos (AWS Secrets Manager, Vault, etc.)
 _HMAC_SECRET: bytes = os.environ.get(
     "FRAUD_HMAC_SECRET",
     "dev-secret-replace-in-production",
@@ -231,20 +275,7 @@ _HMAC_SECRET: bytes = os.environ.get(
 
 
 class FraudOrchestrator:
-    """
-    Orquestador principal del motor antifraude.
 
-    Pesos del modelo de scoring (deben sumar exactamente 1.0):
-      W1 Velocity  = 0.25  — velocidad y límites de recarga
-      W2 Device    = 0.20  — fingerprint, emuladores, multi-cuenta
-      W3 Geo       = 0.20  — geolocalización, viaje imposible
-      W4 Behavior  = 0.20  — patrón conductual, account takeover
-      W5 External  = 0.15  — score de Sift/Kount
-
-    Los pesos son atributos de clase para poder modificarlos en caliente
-    desde el panel de administración sin redespliegue:
-      FraudOrchestrator.W1_VELOCITY = 0.30
-    """
 
     W1_VELOCITY = 0.25
     W2_DEVICE   = 0.20
@@ -254,8 +285,6 @@ class FraudOrchestrator:
 
     def __init__(self):
         self.topup_engine    = TopUpRulesEngine()
-        # Los módulos que necesitan Redis se inicializan lazy en evaluate_transaction
-        # para evitar NoneType cuando el singleton se crea antes del startup de Redis.
         self._blacklist: Optional[BlacklistService]   = None
         self._trust_service: Optional[TrustScoreService] = None
         self._geo_analyzer: Optional[GeoAnalyzer]    = None
@@ -263,11 +292,6 @@ class FraudOrchestrator:
         self._p2p_analyzer: Optional[P2PAnalyzer]    = None
 
     def _ensure_redis_modules(self) -> None:
-        """
-        Inicializa los módulos que dependen de Redis la primera vez que se
-        llama evaluate_transaction. Para entonces redis_manager.client ya
-        está conectado por el startup de FastAPI.
-        """
         redis = redis_manager.client
         if self._blacklist is None:
             self._blacklist       = BlacklistService(redis)
@@ -301,28 +325,20 @@ class FraudOrchestrator:
         self._ensure_redis_modules()
         return self._p2p_analyzer  # type: ignore
 
-    # ------------------------------------------------------------------ #
-    #  Entry point — misma firma que el orquestador original             #
-    # ------------------------------------------------------------------ #
 
     async def evaluate_transaction(
         self,
         payload: TransactionPayload,
         db: Optional[AsyncSession] = None,
     ) -> FraudEvaluationResponse:
-        """
-        Evalúa una transacción y retorna una decisión accionable.
-        Interfaz idéntica al orquestador original — compatible drop-in.
-        """
+
         start_time    = time.perf_counter()
         evaluation_id = uuid.uuid4()
         reason_codes: list[str] = []
+        # Diccionario de contribuciones reales: reason_code → delta aportado al final_score
+        contributions: dict[str, int] = {}
 
-        # ══════════════════════════════════════════════════════════════
-        # PASO 1 — Blacklist check
-        # Corto circuito: si cualquier entidad está bloqueada respondemos
-        # en < 5ms sin ejecutar ningún módulo de análisis.
-        # ══════════════════════════════════════════════════════════════
+
         bl_hit = await self.blacklist.check(
             user_id    = str(payload.user_id),
             device_id  = payload.device_id,
@@ -350,30 +366,17 @@ class FraudOrchestrator:
                 processing_ms = processing_ms,
             )
 
-        # ══════════════════════════════════════════════════════════════
-        # PASO 1b — Rate limiting global (IP + usuario)
-        # Se ejecuta antes del análisis paralelo porque puede ser ya
-        # un bloqueo inmediato sin necesidad de computar nada más.
-        # ══════════════════════════════════════════════════════════════
         rate_penalty, rate_codes = await rate_limit_scorer.score(
             user_id    = str(payload.user_id),
             ip_address = str(payload.ip_address),
         )
 
-        # ══════════════════════════════════════════════════════════════
-        # PASO 2 — Análisis paralelo
-        # Todos los módulos se ejecutan simultáneamente con gather.
-        # El tiempo total es el del módulo más lento, no la suma.
-        # ══════════════════════════════════════════════════════════════
         is_p2p = payload.transaction_type == "P2P_SEND"
 
-        # Campos enriquecidos por el middleware de GeoIP antes de llegar aquí.
-        # Si el middleware no los provee, usamos defaults seguros.
         ip_country  = getattr(payload, "ip_country",  "MX")
         bin_country = getattr(payload, "bin_country", "MX")
         is_vpn      = getattr(payload, "is_vpn",      False)
 
-        # Construir lista de tareas base (siempre se ejecutan)
         tasks = [
             self._evaluate_kyc_device(payload),             # [0] → float
             self._query_external_api(payload),              # [1] → float
@@ -417,12 +420,10 @@ class FraudOrchestrator:
                 amount    = float(payload.amount),
             ),
             time_pattern_scorer.score(                      # [9] → TimePatternResult
-                user_id          = str(payload.user_id),
-                account_age_days = payload.account_age_days,
+                user_id = str(payload.user_id),
             ),
         ]
 
-        # Tarea P2P: solo si es una transferencia entre personas
         if is_p2p and payload.recipient_id:
             tasks.append(
                 self.p2p_analyzer.analyze(                  # [10] → P2PAnalysisResult
@@ -433,12 +434,8 @@ class FraudOrchestrator:
                 )
             )
 
-        # Ejecutar todo en paralelo
         raw_results = await asyncio.gather(*tasks, return_exceptions=True)
 
-        # ── Desempaquetar con manejo de excepciones ───────────────────
-        # Si un módulo falla no tumbamos toda la evaluación — usamos
-        # el fallback definido para ese módulo.
         device_score    = self._safe_float(raw_results[0], "kyc_device",    30.0)
         ext_score       = self._safe_float(raw_results[1], "external_api",  15.0)
         velocity_score  = self._safe_float(raw_results[2], "velocity",      20.0)
@@ -459,10 +456,6 @@ class FraudOrchestrator:
         behavior_score  = behavior_result.score if behavior_result else 10.0
         trust_reduction = trust_profile.trust_reduction if trust_profile else 0
 
-        # ══════════════════════════════════════════════════════════════
-        # PASO 3 — Calcular Risk Score ponderado
-        # Fórmula: Risk = W1·V + W2·D + W3·G + W4·B + W5·E
-        # ══════════════════════════════════════════════════════════════
         weighted_score = (
             (self.W1_VELOCITY * velocity_score)  +
             (self.W2_DEVICE   * device_score)    +
@@ -471,36 +464,34 @@ class FraudOrchestrator:
             (self.W5_EXTERNAL * ext_score)
         )
 
-        # P2P penalty: el score P2P aporta hasta 30% adicional al score base.
-        # No va dentro de la fórmula ponderada porque P2P es opcional —
-        # solo aplica a un subconjunto de transacciones.
+        # Contribuciones reales de los módulos ponderados
+        # Se registran ANTES de extend(geo/behavior reason_codes) para tener los códigos listos
+        _geo_contrib      = round(self.W3_GEO      * geo_score)
+        _behavior_contrib = round(self.W4_BEHAVIOR * behavior_score)
+        _geo_codes_pending      = geo_result.reason_codes      if geo_result      else []
+        _behavior_codes_pending = behavior_result.reason_codes if behavior_result else []
+
         p2p_penalty = 0.0
         if p2p_result:
             p2p_penalty = p2p_result.score * 0.30
 
-        # Aplicar Trust reduction (valor negativo → reduce el score)
-        # Clampear entre 0 y 100
+        # trust_reduction es negativo (reducción de riesgo)
         final_score = int(
             max(0.0, min(100.0, weighted_score + p2p_penalty + trust_reduction))
         )
 
-        # ══════════════════════════════════════════════════════════════
-        # PASO 3b — Ajustes por historial y contexto del payload
-        # Estos datos vienen directo del JSON (no de Redis) y sirven
-        # para enriquecer el score con info histórica simulada.
-        # ══════════════════════════════════════════════════════════════
         from app.domain.schemas import KycLevel
         history_penalty = 0
 
-        # Cuenta muy nueva con monto alto → riesgo adicional
         if payload.account_age_days is not None and payload.account_age_days < 7:
             history_penalty += 20
             reason_codes.append("ACCOUNT_AGE_VERY_NEW")
+            contributions["ACCOUNT_AGE_VERY_NEW"] = 20
         elif payload.account_age_days is not None and payload.account_age_days < 30:
             history_penalty += 10
             reason_codes.append("ACCOUNT_AGE_NEW")
+            contributions["ACCOUNT_AGE_NEW"] = 10
 
-        # Monto actual muy por encima del promedio histórico del usuario
         if (
             payload.avg_monthly_amount is not None
             and payload.avg_monthly_amount > 0
@@ -508,38 +499,54 @@ class FraudOrchestrator:
         ):
             history_penalty += 20
             reason_codes.append("AMOUNT_3X_ABOVE_AVERAGE")
+            contributions["AMOUNT_3X_ABOVE_AVERAGE"] = 20
 
-        # Fallos recientes en ventana de 7 días
         if payload.failed_tx_last_7_days is not None:
             if payload.failed_tx_last_7_days >= 5:
                 history_penalty += 25
                 reason_codes.append("HIGH_FAILED_TX_LAST_7D")
+                contributions["HIGH_FAILED_TX_LAST_7D"] = 25
             elif payload.failed_tx_last_7_days >= 3:
                 history_penalty += 10
                 reason_codes.append("FAILED_TX_LAST_7D")
+                contributions["FAILED_TX_LAST_7D"] = 10
 
-        # KYC bajo para montos altos
         if payload.kyc_level == KycLevel.NONE and float(payload.amount) > 500:
             history_penalty += 15
             reason_codes.append("HIGH_AMOUNT_NO_KYC")
+            contributions["HIGH_AMOUNT_NO_KYC"] = 15
 
-        # Tarjeta internacional en transacción local → leve incremento
         if payload.is_international_card:
             history_penalty += 10
             reason_codes.append("INTERNATIONAL_CARD")
+            contributions["INTERNATIONAL_CARD"] = 10
 
         final_score = int(max(0, min(100, final_score + history_penalty)))
 
-        # Aplicar penalización por rate limiting (IP + usuario)
         if rate_penalty > 0:
             reason_codes.extend(rate_codes)
+            _distribute_to_contributions(contributions, rate_codes, rate_penalty)
             final_score = int(max(0, min(100, final_score + rate_penalty)))
 
-        # ══════════════════════════════════════════════════════════════
-        # PASO 3c — Nuevas capas de detección
-        # ══════════════════════════════════════════════════════════════
+        # ── Tiempo de llenado del formulario ──────────────────────────────
+        fill_t = payload.form_fill_time_seconds
+        if fill_t is not None:
+            if fill_t < 3:
+                # < 3s → scripting / bot — penalización fuerte
+                reason_codes.append("FORM_FILL_INSTANT")
+                contributions["FORM_FILL_INSTANT"] = 30
+                final_score = int(max(0, min(100, final_score + 30)))
+            elif fill_t < 8:
+                # 3–8s → muy rápido para un humano — penalización moderada
+                reason_codes.append("FORM_FILL_VERY_FAST")
+                contributions["FORM_FILL_VERY_FAST"] = 15
+                final_score = int(max(0, min(100, final_score + 15)))
+            elif fill_t > 900:
+                # > 15 min → sesión abandonada o reutilizada — penalización leve
+                reason_codes.append("FORM_FILL_VERY_SLOW")
+                contributions["FORM_FILL_VERY_SLOW"] = 10
+                final_score = int(max(0, min(100, final_score + 10)))
 
-        # ── GPS vs IP Mismatch (síncrono — no usa I/O) ────────────────
         gps_result = gps_ip_mismatch_detector.check(
             latitude   = payload.latitude,
             longitude  = payload.longitude,
@@ -547,88 +554,107 @@ class FraudOrchestrator:
         )
         if gps_result.penalty > 0:
             reason_codes.extend(gps_result.reason_codes)
+            _distribute_to_contributions(contributions, gps_result.reason_codes, gps_result.penalty)
             final_score = int(max(0, min(100, final_score + gps_result.penalty)))
 
-        # ── IP History (salto de país) ─────────────────────────────────
         if ip_hist_result:
             if ip_hist_result.override_block:
+                _score_before = final_score
                 final_score = 100
                 reason_codes.extend(ip_hist_result.reason_codes)
+                _distribute_to_contributions(contributions, ip_hist_result.reason_codes, 100 - _score_before)
             elif ip_hist_result.penalty > 0:
                 reason_codes.extend(ip_hist_result.reason_codes)
+                _distribute_to_contributions(contributions, ip_hist_result.reason_codes, ip_hist_result.penalty)
                 final_score = int(max(0, min(100, final_score + ip_hist_result.penalty)))
 
-        # ── Session Guard (replay / hijacking) ────────────────────────
         if session_result:
             if session_result.override_block:
+                _score_before = final_score
                 final_score = 100
                 reason_codes.extend(session_result.reason_codes)
+                _distribute_to_contributions(contributions, session_result.reason_codes, 100 - _score_before)
             elif session_result.penalty > 0:
                 reason_codes.extend(session_result.reason_codes)
+                _distribute_to_contributions(contributions, session_result.reason_codes, session_result.penalty)
                 final_score = int(max(0, min(100, final_score + session_result.penalty)))
 
-        # ── Card Testing ──────────────────────────────────────────────
         if card_test_result and card_test_result.penalty > 0:
             reason_codes.extend(card_test_result.reason_codes)
+            _distribute_to_contributions(contributions, card_test_result.reason_codes, card_test_result.penalty)
             final_score = int(max(0, min(100, final_score + card_test_result.penalty)))
 
-        # ── Time Pattern (hora inusual) ───────────────────────────────
         if time_result and time_result.penalty > 0:
             reason_codes.extend(time_result.reason_codes)
-            final_score = int(max(0, min(100, final_score + time_result.penalty)))
+            _time_delta = int(time_result.penalty * self.W4_BEHAVIOR)
+            _distribute_to_contributions(contributions, time_result.reason_codes, _time_delta)
+            weighted_score += time_result.penalty * self.W4_BEHAVIOR
+            final_score = int(max(0, min(100, weighted_score + p2p_penalty + trust_reduction)))
 
-        # ══════════════════════════════════════════════════════════════
-        # PASO 4 — Recopilar reason_codes para auditoría
-        # ══════════════════════════════════════════════════════════════
+        # ── Códigos de dispositivo/velocidad — delta real antes/después ─────
         if device_score >= 80:
             reason_codes.append("EMULATOR_OR_ROOT_DETECTED")
+            contributions["EMULATOR_OR_ROOT_DETECTED"] = round(self.W2_DEVICE * device_score)
         elif device_score >= 60:
             reason_codes.append("SUSPICIOUS_DEVICE_FINGERPRINT")
+            contributions["SUSPICIOUS_DEVICE_FINGERPRINT"] = round(self.W2_DEVICE * device_score)
 
         if velocity_score >= 40:
             reason_codes.append("HIGH_VELOCITY_OR_LIMIT_EXCEEDED")
+            contributions["HIGH_VELOCITY_OR_LIMIT_EXCEEDED"] = round(self.W1_VELOCITY * velocity_score)
 
+        # ── Módulos ponderados: geo y behavior ───────────────────────────────
         if geo_result:
             reason_codes.extend(geo_result.reason_codes)
+            _distribute_to_contributions(contributions, _geo_codes_pending, _geo_contrib)
 
         if behavior_result:
             reason_codes.extend(behavior_result.reason_codes)
+            _distribute_to_contributions(contributions, _behavior_codes_pending, _behavior_contrib)
 
+        # ── P2P ──────────────────────────────────────────────────────────────
         if p2p_result:
             reason_codes.extend(p2p_result.reason_codes)
+            _p2p_contrib = round(p2p_result.score * 0.30)
+            _distribute_to_contributions(contributions, p2p_result.reason_codes, _p2p_contrib)
 
+        # ── Trust reduction ──────────────────────────────────────────────────
         if trust_profile and trust_profile.trust_reduction < -10:
-            reason_codes.append(
-                f"TRUST_REDUCTION_{abs(trust_profile.trust_reduction)}PTS"
-            )
+            _trust_code = f"TRUST_REDUCTION_{abs(trust_profile.trust_reduction)}PTS"
+            reason_codes.append(_trust_code)
+            contributions[_trust_code] = trust_profile.trust_reduction  # valor negativo real
+        elif trust_profile and trust_profile.trust_reduction != 0:
+            # Reducción moderada — registrarla en códigos existentes de geo/behavior
+            # que ya vinieron del TrustProfile (e.g. KNOWN_COUNTRY_REDUCTION_*)
+            # Se distribuye entre todos los códigos de geo que ya tengan contribuciones
+            pass
 
-        # ══════════════════════════════════════════════════════════════
-        # PASO 5 — Overrides críticos
-        # Ciertos patrones son tan claros que forzamos el score
-        # independientemente del cálculo ponderado.
-        # ══════════════════════════════════════════════════════════════
+        # Registrar trust_reduction en KNOWN_COUNTRY_REDUCTION_* si está presente
+        _known_country_codes = [
+            c for c in reason_codes if c.startswith("KNOWN_COUNTRY_REDUCTION_")
+        ]
+        if _known_country_codes and trust_profile and trust_profile.trust_reduction != 0:
+            for kc in _known_country_codes:
+                contributions[kc] = trust_profile.trust_reduction  # negativo
 
-        # Viaje imposible → siempre al menos BLOCK_REVIEW
+        # ── Overrides ────────────────────────────────────────────────────────
         if geo_result and geo_result.impossible_travel_detected:
+            _score_before = final_score
             final_score = max(final_score, 76)
+            contributions["OVERRIDE_IMPOSSIBLE_TRAVEL"] = final_score - _score_before
             reason_codes.append("OVERRIDE_IMPOSSIBLE_TRAVEL")
 
-        # Patrón de mula P2P confirmado → siempre BLOCK_PERM
         if p2p_result and p2p_result.mule_pattern_detected:
+            _score_before = final_score
             final_score = max(final_score, 91)
+            contributions["OVERRIDE_MULE_PATTERN_CONFIRMED"] = final_score - _score_before
             reason_codes.append("OVERRIDE_MULE_PATTERN_CONFIRMED")
 
-        # ══════════════════════════════════════════════════════════════
-        # PASO 6 — Determinar acción
-        # ══════════════════════════════════════════════════════════════
         action, challenge, user_msg = self._determine_action(
             score      = final_score,
             p2p_result = p2p_result,
         )
 
-        # ══════════════════════════════════════════════════════════════
-        # PASO 7 — Construir y firmar la respuesta
-        # ══════════════════════════════════════════════════════════════
         processing_ms = int((time.perf_counter() - start_time) * 1000)
 
         response = self._build_response(
@@ -639,6 +665,7 @@ class FraudOrchestrator:
             reason_codes  = reason_codes,
             user_message  = user_msg,
             processing_ms = processing_ms,
+            contributions = contributions,
         )
 
         logger.info(
@@ -650,11 +677,6 @@ class FraudOrchestrator:
             f"codes={reason_codes}"
         )
 
-        # ══════════════════════════════════════════════════════════════
-        # PASO 8 — Background updates (fire-and-forget)
-        # Se ejecutan DESPUÉS de que la respuesta ya fue enviada al Wallet.
-        # create_task garantiza que no bloquean la respuesta.
-        # ══════════════════════════════════════════════════════════════
         asyncio.create_task(
             self._background_updates(
                 payload     = payload,
@@ -673,11 +695,6 @@ class FraudOrchestrator:
     # ------------------------------------------------------------------ #
 
     async def _evaluate_kyc_device(self, payload: TransactionPayload) -> float:
-        """
-        Evalúa el riesgo del dispositivo y el user-agent.
-        Ahora usa también los campos declarados del payload (device_os, is_emulator, etc.).
-        Tiempo esperado: 5-15ms (Redis lookups).
-        """
         score      = 0.0
         ua_lower   = payload.user_agent.lower()
         redis      = redis_manager.client
@@ -742,17 +759,14 @@ class FraudOrchestrator:
                 redis.scard(cards_key),
             )
 
-            # Dispositivo nuevo para este usuario
             if not is_known:
                 score += 20.0
 
-            # Múltiples cuentas distintas en el mismo dispositivo (24h)
             if user_count and user_count >= 3:
-                score += 65.0   # Muy sospechoso: device compartido entre cuentas
+                score += 65.0 
             elif user_count and user_count == 2:
                 score += 20.0
 
-            # RF-KYC-002: 3+ tarjetas distintas en este dispositivo en 10 min
             if card_count and card_count >= 3:
                 score += 70.0
 
@@ -766,27 +780,14 @@ class FraudOrchestrator:
     # ------------------------------------------------------------------ #
 
     async def _query_external_api(self, payload: TransactionPayload) -> float:
-        """
-        Consulta a proveedor externo con timeout estricto de 80ms.
-        Si falla o hace timeout → usa último score cacheado (TTL 30min).
-        Si no hay caché → retorna score neutro (no penaliza por infra).
-        Tiempo esperado: < 80ms con timeout.
-        """
         cache_key = f"ext:score:{payload.user_id}:{payload.device_id}"
         redis     = redis_manager.client
 
         try:
             async with asyncio.timeout(0.080):
-                # ── Reemplazar con llamada real a Sift o Kount ────────
-                # response = await sift_client.score(
-                #     user_id=str(payload.user_id),
-                #     device_id=payload.device_id,
-                #     ip=payload.ip_address,
-                # )
-                # ext_score = response.score * 100
-                ext_score = 10.0  # Placeholder hasta integrar proveedor real
 
-            # Cachear resultado exitoso por 30 minutos
+                ext_score = 10.0 
+
             await redis.setex(cache_key, 1_800, str(ext_score))
             return ext_score
 
@@ -815,10 +816,7 @@ class FraudOrchestrator:
     # ------------------------------------------------------------------ #
 
     async def _evaluate_velocity(self, payload: TransactionPayload) -> float:
-        """
-        Delega en TopUpRulesEngine (tu módulo original, sin cambios).
-        Tiempo esperado: 5-10ms.
-        """
+
         try:
             return await self.topup_engine.evaluate(
                 payload, redis_manager.client
@@ -836,13 +834,6 @@ class FraudOrchestrator:
         score: int,
         p2p_result,
     ) -> Tuple[ActionDecision, Optional[ChallengeType], str]:
-        """
-        Convierte el score numérico en una acción accionable.
-
-        Si hay retención preventiva P2P (cuenta nueva receptora o drenado),
-        usamos CHALLENGE_HARD en lugar de APPROVE aunque el score sea bajo,
-        para aplicar la retención de fondos de 24h.
-        """
         # Override de retención preventiva P2P
         if p2p_result and p2p_result.should_hold_funds and score <= 30:
             return (
@@ -895,13 +886,10 @@ class FraudOrchestrator:
         reason_codes: list,
         user_message: str,
         processing_ms: int,
+        contributions: dict[str, int] | None = None,
     ) -> FraudEvaluationResponse:
-        """
-        Construye la respuesta y la firma con HMAC-SHA256.
-        Genera score_breakdown con explicaciones detalladas por factor.
-        """
-        deduped_codes = list(dict.fromkeys(reason_codes))  # deduplicar manteniendo orden
-        breakdown     = _build_breakdown(deduped_codes)
+        deduped_codes = list(dict.fromkeys(reason_codes))
+        breakdown     = _build_breakdown(deduped_codes, contributions)
 
         signable = json.dumps(
             {
@@ -938,12 +926,7 @@ class FraudOrchestrator:
     def _safe_float(
         self, result, module_name: str, fallback: float
     ) -> float:
-        """
-        Extrae un float de un resultado de gather.
-        Si el módulo lanzó una excepción, logea el error y usa el fallback.
-        El fallback es siempre un valor moderado — nunca 0 (subestimaría
-        el riesgo) ni 100 (bloquearía usuarios legítimos).
-        """
+
         if isinstance(result, Exception):
             logger.error(
                 f"[Orchestrator] Módulo '{module_name}' falló: {result}"
@@ -954,11 +937,7 @@ class FraudOrchestrator:
         return fallback
 
     def _safe_result(self, result, module_name: str):
-        """
-        Extrae un resultado de objeto de gather.
-        Retorna None si el módulo falló — el orquestador maneja None
-        en cada lugar donde se usa el resultado.
-        """
+
         if isinstance(result, Exception):
             logger.error(
                 f"[Orchestrator] Módulo '{module_name}' falló: {result}"
@@ -979,22 +958,7 @@ class FraudOrchestrator:
         response:    Optional["FraudEvaluationResponse"] = None,
         db:          Optional[AsyncSession] = None,
     ) -> None:
-        """
-        Actualiza todos los contadores y perfiles en Redis después de
-        que la respuesta ya fue enviada al Wallet.
 
-        Se ejecuta como tarea independiente via asyncio.create_task().
-        Si falla, solo se logea — no afecta la transacción ya evaluada.
-
-        Actualiza:
-          - Dispositivos conocidos del usuario (para reducir penalización
-            de "dispositivo nuevo" en futuras evaluaciones)
-          - Mapa device_id → user_id (para detectar multi-cuenta)
-          - Tarjetas en ventana de 10 min (para RF-KYC-002)
-          - Risk score acumulado del usuario (para análisis P2P)
-          - Contadores de confianza (solo si la tx fue aprobada)
-          - Historial de destinatarios P2P (para "destinatario frecuente")
-        """
         redis   = redis_manager.client
         user_id = str(payload.user_id)
         approved = action == ActionDecision.ACTION_APPROVE
@@ -1002,27 +966,19 @@ class FraudOrchestrator:
         try:
             pipe = redis.pipeline()
 
-            # Registrar este dispositivo como conocido para el usuario
             pipe.sadd(f"device:user:{user_id}:known_devices", payload.device_id)
             pipe.expire(f"device:user:{user_id}:known_devices", 60 * 60 * 24 * 90)
 
-            # Registrar este user_id en el mapa del dispositivo (multi-cuenta)
             pipe.sadd(f"device:{payload.device_id}:users_24h", user_id)
             pipe.expire(f"device:{payload.device_id}:users_24h", 86_400)
 
-            # Registrar el BIN en la ventana de 10 minutos (RF-KYC-002)
             pipe.sadd(f"device:{payload.device_id}:cards_10min", payload.card_bin)
             pipe.expire(f"device:{payload.device_id}:cards_10min", 600)
 
             await pipe.execute()
 
-            # Actualizar risk score acumulado del usuario
-            # (se usa en P2P para propagar riesgo al emisor si este
-            # usuario es receptor en una futura transacción)
             await self.p2p_analyzer.update_accumulated_risk(user_id, final_score)
 
-            # Solo si la transacción fue aprobada actualizamos
-            # los contadores positivos de confianza
             if approved:
                 await self.trust_service.record_successful_transaction(
                     user_id      = user_id,
@@ -1030,7 +986,6 @@ class FraudOrchestrator:
                     country_code = getattr(payload, "ip_country", "MX"),
                 )
 
-                # Si fue P2P aprobada, actualizar historial de destinatarios
                 if payload.transaction_type == "P2P_SEND" and payload.recipient_id:
                     await self.behavior_engine.record_successful_tx(
                         user_id      = user_id,
@@ -1038,8 +993,6 @@ class FraudOrchestrator:
                         amount       = float(payload.amount),
                         currency     = payload.currency,
                     )
-
-            # ── Persistir auditoría en PostgreSQL ────────────────────
             if db is not None and response is not None:
                 await AuditRepository(db).save_evaluation(
                     payload     = payload,
@@ -1053,9 +1006,4 @@ class FraudOrchestrator:
                 f"[Background] Error actualizando contadores user={user_id}: {e}"
             )
 
-
-# ── Singleton ─────────────────────────────────────────────────────────
-# Misma interfaz que el archivo original.
-# El router llama: await fraud_orchestrator.evaluate_transaction(payload)
-# No es necesario cambiar nada en app/api/routers/transactions.py
 fraud_orchestrator = FraudOrchestrator()
