@@ -28,19 +28,19 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
             detail="Token inválido, manipulado o expirado"
         )
 
-# ── 2. CERRADURA DE INTEGRIDAD: HMAC ─────────────────────────────────
-async def validate_hmac_integrity(request: Request, x_signature: str = Header(...)):
-    """
-    Verifica que el JSON de la transacción coincida con la firma enviada.
-    Evita que alguien cambie el 'amount' durante el envío.
-    """
-    # Obtenemos el cuerpo de la petición tal cual llegó
-    body = await request.json()
+# # ── 2. CERRADURA DE INTEGRIDAD: HMAC ─────────────────────────────────
+# async def validate_hmac_integrity(request: Request, x_signature: str = Header(...)):
+#     """
+#     Verifica que el JSON de la transacción coincida con la firma enviada.
+#     Evita que alguien cambie el 'amount' durante el envío.
+#     """
+#     # Obtenemos el cuerpo de la petición tal cual llegó
+#     body = await request.json()
     
-    # Usamos la función que añadimos al orquestador en el paso anterior
-    if not fraud_orchestrator.verify_incoming_hmac(body, x_signature):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, 
-            detail="Firma de seguridad inválida: La petición fue manipulada"
-        )
-    return body
+#     # Usamos la función que añadimos al orquestador en el paso anterior
+#     if not fraud_orchestrator.verify_incoming_hmac(body, x_signature):
+#         raise HTTPException(
+#             status_code=status.HTTP_403_FORBIDDEN, 
+#             detail="Firma de seguridad inválida: La petición fue manipulada"
+#         )
+#     return body

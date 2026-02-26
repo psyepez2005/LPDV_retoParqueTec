@@ -1,5 +1,3 @@
-
-
 from typing import Optional
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -12,9 +10,7 @@ from app.domain.schemas import (
 )
 from app.api.dependencies import get_db_session
 from app.services.auth_service import auth_service
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.ext.asyncio import AsyncSession
-from app.core.security import SecurityManager 
+from app.core.security import SecurityManager
 
 
 router = APIRouter(prefix="/v1/auth", tags=["Autenticación"])
@@ -26,10 +22,10 @@ ALLOWED_CONTENT_TYPES = {"image/jpeg", "image/png", "image/webp"}
 
 @router.post(
     "/register",
-    response_model = UserRegisterResponse,
-    status_code    = status.HTTP_201_CREATED,
-    summary        = "Registrar nuevo usuario",
-    description    = (
+    response_model=UserRegisterResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Registrar nuevo usuario",
+    description=(
         "Registra un usuario nuevo con foto de cara para verificación biométrica. "
         "Enviar como multipart/form-data."
     ),
@@ -42,31 +38,29 @@ async def register(
     face_photo: Optional[UploadFile] = File(None, description="Foto frontal del rostro (JPG/PNG) — opcional"),
     db: AsyncSession                 = Depends(get_db_session),
 ):
-
-
     face_bytes: Optional[bytes] = None
     if face_photo is not None:
         if face_photo.content_type not in ALLOWED_CONTENT_TYPES:
             raise HTTPException(
-                status_code = status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail      = "Formato de imagen no soportado. Usa JPG, PNG o WebP.",
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Formato de imagen no soportado. Usa JPG, PNG o WebP.",
             )
         face_bytes = await face_photo.read()
         if len(face_bytes) > MAX_PHOTO_SIZE_BYTES:
             raise HTTPException(
-                status_code = status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-                detail      = "La foto no puede superar los 5MB.",
+                status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                detail="La foto no puede superar los 5MB.",
             )
         if len(face_bytes) == 0:
             raise HTTPException(
-                status_code = status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail      = "La foto está vacía.",
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="La foto está vacía.",
             )
 
     if not cedula.isdigit():
         raise HTTPException(
-            status_code = status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail      = "La cédula solo debe contener números.",
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="La cédula solo debe contener números.",
         )
 
     try:
@@ -82,13 +76,17 @@ async def register(
         raise HTTPException(status_code=e.status_code, detail=e.message)
 
 
-@router.post("/login")
+@router.post(
+    "/login",
+    response_model=UserLoginResponse,
+    summary="Iniciar sesión",
+)
 async def login(
     payload: UserLoginRequest,
     db: AsyncSession = Depends(get_db_session),
 ):
     try:
-        # 1. El servicio valida email_hash y password
+        # 1. El servicio valida credenciales y retorna UserLoginResponse
         user = await auth_service.login(
             db       = db,
             email    = payload.email,
@@ -97,8 +95,8 @@ async def login(
 
         if not user:
             raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED, 
-                detail="Credenciales inválidas"
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Credenciales inválidas",
             )
 
         # El servicio ya generó el token JWT y construyó la respuesta completa.
@@ -109,6 +107,19 @@ async def login(
             "message":      "Bienvenido a Plux",
             "user_id":      str(user.user_id),
         }
+        # 2. Generamos el JWT usando user.user_id (campo correcto de UserLoginResponse)
+        access_token = SecurityManager.create_access_token(
+            data={"sub": str(user.user_id)}
+        )
+
+        # 3. Retornamos la respuesta completa
+        return UserLoginResponse(
+            access_token=access_token,
+            token_type="bearer",
+            expires_in=user.expires_in,
+            user_id=user.user_id,
+            username=user.username,
+        )
 
     except FraudMotorException as e:
         raise HTTPException(status_code=e.status_code, detail=e.message)
