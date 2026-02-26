@@ -1,5 +1,6 @@
 
 
+from typing import Optional
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -30,34 +31,33 @@ ALLOWED_CONTENT_TYPES = {"image/jpeg", "image/png", "image/webp"}
     ),
 )
 async def register(
-    email:      str        = Form(..., description="Correo electrónico"),
-    username:   str        = Form(..., min_length=3, max_length=50),
-    password:   str        = Form(..., min_length=8),
-    cedula:     str        = Form(..., min_length=6, max_length=20),
-    face_photo: UploadFile = File(..., description="Foto frontal del rostro (JPG/PNG)"),
-    db: AsyncSession       = Depends(get_db_session),
+    email:      str                  = Form(..., description="Correo electrónico"),
+    username:   str                  = Form(..., min_length=3, max_length=50),
+    password:   str                  = Form(..., min_length=8),
+    cedula:     str                  = Form(..., min_length=6, max_length=20),
+    face_photo: Optional[UploadFile] = File(None, description="Foto frontal del rostro (JPG/PNG) — opcional"),
+    db: AsyncSession                 = Depends(get_db_session),
 ):
 
 
-    if face_photo.content_type not in ALLOWED_CONTENT_TYPES:
-        raise HTTPException(
-            status_code = status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail      = f"Formato de imagen no soportado. Usa JPG, PNG o WebP.",
-        )
-
-    face_bytes = await face_photo.read()
-
-    if len(face_bytes) > MAX_PHOTO_SIZE_BYTES:
-        raise HTTPException(
-            status_code = status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-            detail      = "La foto no puede superar los 5MB.",
-        )
-
-    if len(face_bytes) == 0:
-        raise HTTPException(
-            status_code = status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail      = "La foto está vacía.",
-        )
+    face_bytes: Optional[bytes] = None
+    if face_photo is not None:
+        if face_photo.content_type not in ALLOWED_CONTENT_TYPES:
+            raise HTTPException(
+                status_code = status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail      = "Formato de imagen no soportado. Usa JPG, PNG o WebP.",
+            )
+        face_bytes = await face_photo.read()
+        if len(face_bytes) > MAX_PHOTO_SIZE_BYTES:
+            raise HTTPException(
+                status_code = status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                detail      = "La foto no puede superar los 5MB.",
+            )
+        if len(face_bytes) == 0:
+            raise HTTPException(
+                status_code = status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail      = "La foto está vacía.",
+            )
 
     if not cedula.isdigit():
         raise HTTPException(

@@ -144,7 +144,7 @@ class AuditRepository:
                 action            = action.value,
                 risk_score        = final_score,
                 reason_codes      = response.reason_codes,
-                transaction_type  = str(payload.transaction_type),
+                transaction_type  = payload.transaction_type.value,
                 amount            = payload.amount,
                 currency          = payload.currency,
                 encrypted_payload = encrypted_payload,

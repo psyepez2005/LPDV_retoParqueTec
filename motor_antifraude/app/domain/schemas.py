@@ -42,7 +42,35 @@ class ChallengeType(str, Enum):
 # TRANSACCIONES
 # ─────────────────────────────────────────────────────────────────────
 
+class DeviceOS(str, Enum):
+    ANDROID = "android"
+    IOS     = "ios"
+    WEB     = "web"
+    UNKNOWN = "unknown"
+
+class NetworkType(str, Enum):
+    WIFI    = "wifi"
+    FOUR_G  = "4g"
+    THREE_G = "3g"
+    VPN     = "vpn"
+    UNKNOWN = "unknown"
+
+class KycLevel(str, Enum):
+    NONE  = "none"
+    BASIC = "basic"
+    FULL  = "full"
+
+class MerchantCategory(str, Enum):
+    ECOMMERCE   = "ECOMMERCE"
+    ATM         = "ATM"
+    POS         = "POS"
+    TRANSFER    = "TRANSFER"
+    SUBSCRIPTION = "SUBSCRIPTION"
+    UNKNOWN     = "UNKNOWN"
+
+
 class TransactionPayload(BaseModel):
+    # ── Campos base (obligatorios) ─────────────────────────────────────
     user_id:          UUID4
     device_id:        str            = Field(..., min_length=1)
     card_bin:         str            = Field(..., min_length=6, max_length=8)
@@ -58,7 +86,44 @@ class TransactionPayload(BaseModel):
     user_agent:       str            = Field(..., min_length=1)
     sdk_version:      str            = Field(..., min_length=1)
 
-    model_config = ConfigDict(extra="forbid")
+    # ── Contexto del dispositivo (opcionales) ──────────────────────────
+    device_os:        DeviceOS       = DeviceOS.UNKNOWN
+    device_model:     Optional[str]  = None
+    is_rooted_device: bool           = False
+    is_emulator:      bool           = False
+    network_type:     NetworkType    = NetworkType.UNKNOWN
+    battery_level:    Optional[int]  = Field(None, ge=0, le=100)
+
+    # ── Historial del usuario (opcionales) ────────────────────────────
+    account_age_days:          Optional[int]     = Field(None, ge=0)
+    avg_monthly_amount:        Optional[Decimal] = Field(None, ge=0)
+    tx_count_last_30_days:     Optional[int]     = Field(None, ge=0)
+    failed_tx_last_7_days:     Optional[int]     = Field(None, ge=0)
+    time_since_last_tx_minutes: Optional[int]   = Field(None, ge=0)
+    kyc_level:                 KycLevel          = KycLevel.NONE
+
+    # ── Contexto de sesión / red (opcionales) ─────────────────────────
+    session_duration_seconds: Optional[int] = Field(None, ge=0)
+
+    # ── Contexto de tarjeta / pago (opcionales) ───────────────────────
+    card_last4:           Optional[str]             = Field(None, min_length=4, max_length=4)
+    is_international_card: bool                     = False
+    merchant_category:    MerchantCategory          = MerchantCategory.UNKNOWN
+
+    model_config = ConfigDict(extra="ignore")
+
+
+
+
+class ScoreEntry(BaseModel):
+    """
+    Explicación detallada de un factor de riesgo individual.
+    Uno por cada reason_code activo en la evaluación.
+    """
+    code:        str   # Código interno del factor (e.g. SESSION_REPLAY_ATTACK)
+    points:      int   # Puntos que este factor sumó al score (0 si es informativo)
+    category:    str   # Módulo que lo detectó (e.g. "Sesión", "Dispositivo")
+    description: str   # Explicación en lenguaje natural del motivo
 
 
 class FraudEvaluationResponse(BaseModel):
@@ -67,6 +132,10 @@ class FraudEvaluationResponse(BaseModel):
     risk_score:       int            = Field(..., ge=0, le=100)
     challenge_type:   Optional[ChallengeType] = None
     reason_codes:     List[str]
+    score_breakdown:  List[ScoreEntry] = Field(
+        default_factory=list,
+        description="Desglose detallado de cada factor que contribuyó al score"
+    )
     user_message:     str
     response_time_ms: int            = Field(..., ge=0)
     signature:        str            = Field(..., min_length=64)

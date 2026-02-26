@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Plux | Dashboard Antifraude</title>
+    <meta name="description"
+        content="Panel analítico de monitoreo antifraude en tiempo real para analistas de riesgo de Plux." />
+
+    <!-- Tailwind CSS vía CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Estilos personalizados compartidos -->
+    <link rel="stylesheet" href="/motor_antifraude/front/styles.css" />
+</head>
+
+<!-- .dash-page activa el tema claro de dashboard definido en styles.css -->
+
+<body class="dash-page font-sans antialiased">
+
+    <!-- ── HEADER ──────────────────────────────────────────── -->
+    <header class="dash-header sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 py-3.5 flex items-center justify-between gap-4">
+
+            <!-- Botón Volver -->
+            <a href="../motor/index.html"
+                class="inline-flex items-center gap-2 rounded-lg border border-purple-200 bg-purple-50 px-3.5 py-1.5 text-xs font-semibold text-purple-700 hover:bg-purple-100 active:scale-95 transition-all">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="15 18 9 12 15 6" />
+                </svg>
+                Volver al Motor
+            </a>
+
+            <!-- Título central -->
+            <div class="flex items-center gap-3">
+                <div class="h-8 w-8 rounded-lg bg-orange-100 border border-orange-200 flex items-center justify-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-orange-500" viewBox="0 0 24 24"
+                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+                    </svg>
+                </div>
+                <div>
+                    <h1 class="text-sm font-bold text-purple-800 tracking-tight leading-none">Dashboard Antifraude</h1>
+                    <p class="text-[11px] text-purple-400 leading-none mt-0.5">Plux Engine v1 · Monitoreo en tiempo real
+                    </p>
+                </div>
+            </div>
+
+            <!-- Estado LIVE -->
+            <div class="hidden sm:flex items-center gap-2 text-[11px] text-gray-500">
+                <span class="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                <span>Motor activo</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- ── CONTENIDO PRINCIPAL ─────────────────────────────── -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 py-8 space-y-8">
+
+        <!-- ── ROW 1: KPI Cards ────────────────────────────── -->
+        <section>
+            <h2 class="text-xs font-semibold uppercase tracking-widest text-purple-500 mb-4">KPIs Globales</h2>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+
+                <!-- KPI: Volumen Transaccional -->
+                <article class="kpi-card">
+                    <div class="flex items-center justify-between mb-3">
+                        <span class="text-[11px] font-semibold text-purple-500 uppercase tracking-wider">Volumen
+                            Transaccional</span>
+                        <div
+                            class="h-7 w-7 rounded-lg bg-purple-50 border border-purple-100 flex items-center justify-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-purple-500" viewBox="0 0 24 24"
+                                fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                stroke-linejoin="round">
+                                <line x1="12" y1="1" x2="12" y2="23" />
+                                <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+                            </svg>
+                        </div>
+                    </div>
+                    <p id="kpi-volume" class="text-3xl font-bold text-gray-900 tracking-tight">$0.00</p>
+                    <p class="text-[11px] text-gray-400 mt-1.5">Total procesado hoy</p>
+                </article>
+
+                <!-- KPI: Tasa de Rechazo -->
+                <article class="kpi-card">
+                    <div class="flex items-center justify-between mb-3">
+                        <span class="text-[11px] font-semibold text-purple-500 uppercase tracking-wider">Tasa de
+                            Rechazo</span>
+                        <div
+                            class="h-7 w-7 rounded-lg bg-orange-50 border border-orange-100 flex items-center justify-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-orange-500" viewBox="0 0 24 24"
+                                fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                stroke-linejoin="round">
+                                <circle cx="12" cy="12" r="10" />
+                                <line x1="4.93" y1="4.93" x2="19.07" y2="19.07" />
+                            </svg>
+                        </div>
+                    </div>
+                    <p id="kpi-rejection" class="text-3xl font-bold text-orange-500 tracking-tight">0.0%</p>
+                    <p class="text-[11px] text-gray-400 mt-1.5">Transacciones rechazadas del total</p>
+                </article>
+
+                <!-- KPI: Alertas Críticas -->
+                <article class="kpi-card">
+                    <div class="flex items-center justify-between mb-3">
+                        <span class="text-[11px] font-semibold text-purple-500 uppercase tracking-wider">Alertas
+                            Críticas</span>
+                        <div
+                            class="h-7 w-7 rounded-lg bg-red-50 border border-red-100 flex items-center justify-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-red-500" viewBox="0 0 24 24"
+                                fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                stroke-linejoin="round">
+                                <path
+                                    d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                                <line x1="12" y1="9" x2="12" y2="13" />
+                                <line x1="12" y1="17" x2="12.01" y2="17" />
+                            </svg>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2.5">
+                        <p id="kpi-alerts" class="text-3xl font-bold text-red-500 tracking-tight">0</p>
+                        <span id="kpi-alerts-badge"
+                            class="hidden alert-badge text-[10px] font-bold bg-red-500 text-white px-2 py-0.5 rounded-full">LIVE</span>
+                    </div>
+                    <p class="text-[11px] text-gray-400 mt-1.5">Fraudes detectados última hora</p>
+                </article>
+
+            </div>
+        </section>
+
+        <!-- ── ROW 2: Grid de módulos de análisis ──────────── -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+            <!-- ── Módulo A: Panel de Discrepancias Geográficas ── -->
+            <section class="dash-module">
+                <div class="dash-module-header">
+                    <div class="flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-orange-500" viewBox="0 0 24 24"
+                            fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                            stroke-linejoin="round">
+                            <circle cx="12" cy="10" r="3" />
+                            <path d="M12 2a8 8 0 0 1 8 8c0 5.25-8 14-8 14S4 15.25 4 10a8 8 0 0 1 8-8z" />
+                        </svg>
+                        <h3 class="text-sm font-semibold text-purple-800">Panel Geográfico</h3>
+                    </div>
+                    <span
+                        class="text-[10px] text-purple-600 bg-purple-50 border border-purple-100 px-2 py-0.5 rounded-full">IP
+                        vs País de Envío</span>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-xs">
+                        <thead>
+                            <tr class="text-purple-500 border-b border-purple-100">
+                                <th class="text-left py-2 px-3 font-semibold">Dirección IP</th>
+                                <th class="text-left py-2 px-3 font-semibold">País IP</th>
+                                <th class="text-left py-2 px-3 font-semibold">País Envío</th>
+                                <th class="text-left py-2 px-3 font-semibold">Estado</th>
+                            </tr>
+                        </thead>
+                        <tbody id="geo-table-body">
+                            <!-- TODO: Reemplazar filas estáticas con datos del backend (IPAddress vs ShippingCountry).
+                                 Llamar a renderGeoTable(data) desde dashboard.js cuando el endpoint esté disponible. -->
+                            <tr class="border-b border-gray-100 hover:bg-purple-50/40 transition-colors">
+                                <td class="py-2 px-3 text-gray-700 font-mono">201.218.45.12</td>
+                                <td class="py-2 px-3 text-gray-700">🇪🇨 Ecuador</td>
+                                <td class="py-2 px-3 text-gray-700">🇪🇸 España</td>
+                                <td class="py-2 px-3"><span class="status-badge status-suspicious">Sospechoso</span>
+                                </td>
+                            </tr>
+                            <tr class="border-b border-gray-100 hover:bg-purple-50/40 transition-colors">
+                                <td class="py-2 px-3 text-gray-700 font-mono">185.93.120.44</td>
+                                <td class="py-2 px-3 text-gray-700">🇷🇺 Rusia</td>
+                                <td class="py-2 px-3 text-gray-700">🇺🇸 EE.UU.</td>
+                                <td class="py-2 px-3"><span class="status-badge status-fraud">Fraude</span></td>
+                            </tr>
+                            <tr class="border-b border-gray-100 hover:bg-purple-50/40 transition-colors">
+                                <td class="py-2 px-3 text-gray-700 font-mono">192.168.0.1</td>
+                                <td class="py-2 px-3 text-gray-700">🇨🇷 Costa Rica</td>
+                                <td class="py-2 px-3 text-gray-700">🇨🇷 Costa Rica</td>
+                                <td class="py-2 px-3"><span class="status-badge status-safe">Seguro</span></td>
+                            </tr>
+                            <tr class="border-b border-gray-100 hover:bg-purple-50/40 transition-colors">
+                                <td class="py-2 px-3 text-gray-700 font-mono">41.78.200.3</td>
+                                <td class="py-2 px-3 text-gray-700">🇳🇬 Nigeria</td>
+                                <td class="py-2 px-3 text-gray-700">🇲🇽 México</td>
+                                <td class="py-2 px-3"><span class="status-badge status-fraud">Fraude</span></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- ── Módulo B: Monitor de Huella de Identidad ── -->
+            <section class="dash-module">
+                <div class="dash-module-header">
+                    <div class="flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-purple-500" viewBox="0 0 24 24"
+                            fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                            stroke-linejoin="round">
+                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                            <circle cx="9" cy="7" r="4" />
+                            <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                            <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                        </svg>
+                        <h3 class="text-sm font-semibold text-purple-800">Huella de Identidad</h3>
+                    </div>
+                    <span
+                        class="text-[10px] text-purple-600 bg-purple-50 border border-purple-100 px-2 py-0.5 rounded-full">Velocity
+                        Check</span>
+                </div>
+                <ul id="identity-list" class="space-y-2.5">
+                    <!-- TODO: Inyectar dinámicamente en renderIdentityMonitor(data).
+                         Variables: CustomerLegalDocument, CustomerEMail, CustomerPhoneNumber.
+                         Mostrar badge si un mismo documento aparece con > 2 tarjetas distintas. -->
+                    <li class="identity-item border-red-300">
+                        <div class="flex items-start justify-between gap-2">
+                            <div>
+                                <p class="text-xs font-semibold text-gray-800">DOC: 1720045112</p>
+                                <p class="text-[11px] text-gray-500">test99@protonmail.com · +1 555 867 5309</p>
+                            </div>
+                            <span
+                                class="alert-badge flex-shrink-0 text-[10px] font-bold bg-red-500 text-white px-2 py-0.5 rounded-full">5
+                                tarjetas</span>
+                        </div>
+                        <div class="mt-2 h-1.5 rounded-full bg-gray-100">
+                            <div class="h-1.5 rounded-full bg-gradient-to-r from-orange-400 to-red-500"
+                                style="width: 95%"></div>
+                        </div>
+                    </li>
+                    <li class="identity-item border-orange-300">
+                        <div class="flex items-start justify-between gap-2">
+                            <div>
+                                <p class="text-xs font-semibold text-gray-800">DOC: 0915678234</p>
+                                <p class="text-[11px] text-gray-500">fraude@tempmail.com · +593 99 123 4567</p>
+                            </div>
+                            <span
+                                class="alert-badge flex-shrink-0 text-[10px] font-bold bg-orange-500 text-white px-2 py-0.5 rounded-full">3
+                                tarjetas</span>
+                        </div>
+                        <div class="mt-2 h-1.5 rounded-full bg-gray-100">
+                            <div class="h-1.5 rounded-full bg-gradient-to-r from-yellow-400 to-orange-500"
+                                style="width: 75%"></div>
+                        </div>
+                    </li>
+                    <li class="identity-item border-gray-200">
+                        <div class="flex items-start justify-between gap-2">
+                            <div>
+                                <p class="text-xs font-semibold text-gray-800">DOC: 0401956723</p>
+                                <p class="text-[11px] text-gray-500">usuario.ok@gmail.com · +593 98 765 4321</p>
+                            </div>
+                            <span
+                                class="flex-shrink-0 text-[10px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-full">1
+                                tarjeta</span>
+                        </div>
+                        <div class="mt-2 h-1.5 rounded-full bg-gray-100">
+                            <div class="h-1.5 rounded-full bg-emerald-400" style="width: 20%"></div>
+                        </div>
+                    </li>
+                </ul>
+            </section>
+
+            <!-- ── Módulo C: Feed Transaccional en Tiempo Real ── -->
+            <section class="dash-module">
+                <div class="dash-module-header">
+                    <div class="flex items-center gap-2">
+                        <span class="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-emerald-600" viewBox="0 0 24 24"
+                            fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                            stroke-linejoin="round">
+                            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+                        </svg>
+                        <h3 class="text-sm font-semibold text-purple-800">Feed Transaccional</h3>
+                    </div>
+                    <span
+                        class="text-[10px] text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">LIVE</span>
+                </div>
+                <!-- El feed se llena dinámicamente desde dashboard.js -->
+                <ul id="tx-feed" class="space-y-2 max-h-60 overflow-y-auto feed-scroll">
+                    <!-- TODO: Inyectar ítems dinámicamente vía renderTransactionFeed(tx).
+                         Variables por ítem: OrderDate, CreditCardFirst6 (BIN), Total Value, ShippingCountry.
+                         Resaltar en rojo si Total Value > $1,000. Validar BIN contra país del banco. -->
+                    <li class="text-center text-xs text-gray-400 py-6">
+                        Iniciando simulación de transacciones…
+                    </li>
+                </ul>
+            </section>
+
+            <!-- ── Módulo D: Mapa de Calor por Unidad de Negocio ── -->
+            <section class="dash-module">
+                <div class="dash-module-header">
+                    <div class="flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-red-500" viewBox="0 0 24 24"
+                            fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                            stroke-linejoin="round">
+                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                            <rect x="7" y="7" width="3" height="9" />
+                            <rect x="14" y="7" width="3" height="5" />
+                        </svg>
+                        <h3 class="text-sm font-semibold text-purple-800">Mapa de Calor · Comercios</h3>
+                    </div>
+                    <span class="text-[10px] text-red-600 bg-red-50 border border-red-200 px-2 py-0.5 rounded-full">Más
+                        Vulnerados</span>
+                </div>
+                <div id="heatmap-container" class="space-y-3">
+                    <!-- TODO: Inyectar dinámicamente en renderHeatmap(data).
+                         Agrupar transacciones fraudulentas por RUC / Nombre del comercio
+                         y mostrar ranking ordenado de mayor a menor número de incidentes. -->
+                    <div>
+                        <div class="flex justify-between items-center mb-1.5">
+                            <span class="text-xs text-gray-700 font-medium">Maxiplus S.A.</span>
+                            <span class="text-[11px] text-red-600 font-semibold">34 incidentes</span>
+                        </div>
+                        <div class="h-2.5 rounded-full bg-purple-100">
+                            <div class="h-2.5 rounded-full bg-gradient-to-r from-orange-400 to-red-500 transition-all duration-700"
+                                style="width: 92%"></div>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="flex justify-between items-center mb-1.5">
+                            <span class="text-xs text-gray-700 font-medium">Aki Tiendas</span>
+                            <span class="text-[11px] text-orange-600 font-semibold">21 incidentes</span>
+                        </div>
+                        <div class="h-2.5 rounded-full bg-purple-100">
+                            <div class="h-2.5 rounded-full bg-gradient-to-r from-yellow-400 to-orange-500 transition-all duration-700"
+                                style="width: 57%"></div>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="flex justify-between items-center mb-1.5">
+                            <span class="text-xs text-gray-700 font-medium">TuPrecio Online</span>
+                            <span class="text-[11px] text-yellow-700 font-semibold">12 incidentes</span>
+                        </div>
+                        <div class="h-2.5 rounded-full bg-purple-100">
+                            <div class="h-2.5 rounded-full bg-gradient-to-r from-purple-400 to-yellow-400 transition-all duration-700"
+                                style="width: 32%"></div>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="flex justify-between items-center mb-1.5">
+                            <span class="text-xs text-gray-700 font-medium">FarmaExpress</span>
+                            <span class="text-[11px] text-purple-600 font-semibold">5 incidentes</span>
+                        </div>
+                        <div class="h-2.5 rounded-full bg-purple-100">
+                            <div class="h-2.5 rounded-full bg-purple-400 transition-all duration-700"
+                                style="width: 13%"></div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+        </div><!-- /grid módulos -->
+    </main>
+
+    <!-- ── FOOTER ──────────────────────────────────────────── -->
+    <footer class="border-t border-gray-200 mt-10 py-3 bg-white">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between text-[11px] text-gray-400">
+            <span>&copy; 2026 LPDV Team | All rights reserved.</span>
+            <span>Plux · Motor Antifraude v1 · Demo</span>
+        </div>
+    </footer>
+
+    <!-- Lógica del Dashboard -->
+    <script src="dashboard.js" defer></script>
+</body>
+
+</html>

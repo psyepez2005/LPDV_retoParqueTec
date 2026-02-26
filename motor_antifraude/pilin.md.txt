@@ -1,0 +1,55 @@
+# Blueprint: Dashboard de Monitoreo Antifraude - Plux
+
+## 1. Visión General de la Interfaz (UI/UX)
+El dashboard será una Single Page Application (SPA) construida en `index.html`, enfocada en la visualización de datos en tiempo real. Utilizará la paleta de colores de Plux (Morado intenso, blanco y acentos en naranja/rojo para alertas).
+
+* **Layout:** Un diseño de cuadrícula (CSS Grid/Tailwind) con una barra lateral (Sidebar) de navegación y un panel principal de contenido.
+* **Interactividad (`app.js`):** Simulación de entrada de datos en tiempo real para la demostración, con actualización dinámica del DOM.
+
+---
+
+## 2. KPIs Globales (Tarjetas Superiores - Top Row)
+Fila de tarjetas de métricas clave (Hero Metrics) para dar un resumen rápido del estado del motor.
+
+* **Volumen Transaccional:** Sumatoria de `Total Value` procesado en el día.
+* **Tasa de Rechazo:** Porcentaje de transacciones marcadas como fraude.
+* **Alertas Críticas:** Contador en rojo de intentos de fraude detectados en la última hora (basado en `OrderDate`).
+
+---
+
+## 3. Módulos de Análisis (Grid Principal)
+
+### A. Panel de Discrepancias Geográficas (Contexto)
+**Objetivo:** Visualizar el cruce de ubicaciones para detectar anomalías físicas.
+* **UI:** Una tabla dinámica o un mapa de calor simplificado.
+* **Variables:** `IPAddress` vs `ShippingCountry`.
+* **Lógica de Alerta:** Si la IP (ej. Ecuador) no coincide con el país de envío (ej. España), la fila se resalta en naranja (Sospechoso) o rojo (Fraude).
+
+### B. Monitor de Huella de Identidad (Contacto)
+**Objetivo:** Rastrear el reciclaje de datos y detectar redes de fraude.
+* **UI:** Lista de "Identidades de Alto Riesgo" con indicadores de velocidad (Velocity Checks).
+* **Variables:** `CustomerLegalDocument`, `CustomerEMail`, `CustomerPhoneNumber`.
+* **Lógica de Alerta:** Muestra un *badge* de advertencia si un mismo `CustomerLegalDocument` o `CustomerEMail` aparece asociado a más de 2 tarjetas distintas en un periodo corto.
+
+### C. Feed Transaccional en Tiempo Real (Financiero)
+**Objetivo:** Mostrar el flujo de dinero y las validaciones del BIN.
+* **UI:** Una lista de transacciones estilo *feed* que se actualiza automáticamente.
+* **Variables:** `OrderDate`, `CreditCardFirst6` (BIN), `Total Value`.
+* **Lógica de Alerta:** * Extrae la marca y país del banco emisor usando el BIN (`CreditCardFirst6`).
+    * Compara el país del banco con el `ShippingCountry`.
+    * Marca visualmente transacciones con un `Total Value` que supere el umbral de riesgo configurado (ej. > $1,000).
+
+### D. Mapa de Calor por Unidad de Negocio (Comercio)
+**Objetivo:** Identificar qué comercios o sucursales están bajo ataque.
+* **UI:** Gráfico de barras horizontales o gráfico de dona (implementable con Chart.js o puro CSS/Tailwind).
+* **Variables:** `RUC` / `Nombre` del comercio.
+* **Lógica:** Agrupa las transacciones fraudulentas por comercio para mostrar un ranking de los negocios más vulnerados (ej. Maxiplus, Aki).
+
+---
+
+## 4. Requisitos Técnicos de Implementación
+
+1.  **HTML (`index.html`):** Estructura semántica usando `<section>`, `<article>`, y clases de Tailwind CSS importadas por CDN para un desarrollo rápido y limpio.
+2.  **Estilos (`styles.css`):** Clases personalizadas solo para animaciones críticas (ej. el parpadeo de una nueva alerta en el feed) y personalización del scrollbar para que se vea premium.
+3.  **JavaScript (`app.js`):** * Crear un generador de datos simulados (Mock Data Generator) que emita objetos JSON con las variables descritas cada pocos segundos.
+    * Funciones de renderizado que tomen ese JSON y actualicen las tablas y KPIs del DOM sin recargar la página.
