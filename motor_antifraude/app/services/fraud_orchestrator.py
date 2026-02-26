@@ -275,12 +275,7 @@ _HMAC_SECRET: bytes = os.environ.get(
 
 
 class FraudOrchestrator:
-<<<<<<< HEAD
 
-
-=======
-    
->>>>>>> 0afe9f6b34c2e46d98df9e0bceeffa3b02922edf
     W1_VELOCITY = 0.25
     W2_DEVICE   = 0.20
     W3_GEO      = 0.20
