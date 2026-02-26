@@ -38,6 +38,3 @@ cryptography
 
 # Email
 aiosmtplib
-
-# Face recognition
-face-recognition

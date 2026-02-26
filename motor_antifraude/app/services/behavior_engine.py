@@ -28,6 +28,7 @@ PENALTY_PROFILE_CHANGE_24H  = 25   # Email o teléfono cambiado en últimas 24h
                                    # → señal de account takeover
 PENALTY_FAST_LOGIN_TX       = 15   # Login y tx en < 30 segundos
                                    # → posible bot o sesión robada
+PENALTY_UNUSUAL_HOUR        = 15   # Transacción en hora fuera del rango habitual
 PENALTY_AMOUNT_10X_AVERAGE  = 35   # Monto > 10x su promedio histórico
 PENALTY_AMOUNT_3X_AVERAGE   = 20   # Monto > 3x su promedio histórico
 PENALTY_CURRENCY_CHANGE     = 12   # Cambio de moneda habitual
