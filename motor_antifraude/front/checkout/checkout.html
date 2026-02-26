@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Checkout - Plux</title>
+
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Estilos específicos del checkout Plux -->
+    <link rel="stylesheet" href="./checkout.css" />
+  </head>
+  <body class="bg-gray-50 text-gray-900">
+    <!-- Header tipo Amazon + Plux -->
+    <header class="bg-white shadow-sm">
+      <div class="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <div
+            class="w-8 h-8 rounded-full bg-purple-700 flex items-center justify-center text-white font-bold text-lg"
+          >
+            P
+          </div>
+          <div>
+            <div class="text-purple-800 font-semibold text-xl leading-tight">
+              Plux
+            </div>
+            <div class="text-xs text-gray-500">Checkout seguro</div>
+          </div>
+        </div>
+        <div class="hidden sm:flex items-center gap-1 text-xs text-gray-500">
+          <span class="inline-block w-4 h-4 rounded-full border border-green-500 mr-1"></span>
+          Conexión cifrada
+        </div>
+      </div>
+    </header>
+
+    <main class="max-w-5xl mx-auto px-4 py-6 md:py-10">
+      <!-- Mensaje de éxito / redirección simulada -->
+      <div
+        id="success-alert"
+        class="hidden mb-4 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800"
+        role="alert"
+        aria-live="polite"
+      >
+        Pago aprobado con Plux. Redirigiendo a tu comercio...
+      </div>
+
+      <!-- Layout principal -->
+      <div class="md:grid md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] md:gap-6">
+        <!-- Columna izquierda: formulario -->
+        <section class="space-y-4 md:space-y-6">
+          <form id="checkout-form" novalidate>
+            <!-- Sección 1: Dirección de Facturación -->
+            <div class="bg-white rounded-xl shadow-md border border-gray-100 p-6 mb-4">
+              <h2 class="text-lg font-semibold text-purple-800 mb-4">
+                Dirección de facturación
+              </h2>
+
+              <div class="space-y-4">
+                <!-- Nombre completo -->
+                <div>
+                  <label
+                    for="full-name"
+                    class="block text-sm font-medium text-gray-700 mb-1"
+                    >Nombre completo</label
+                  >
+                  <input
+                    id="full-name"
+                    name="fullName"
+                    type="text"
+                    autocomplete="name"
+                    required
+                    class="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-600 focus:border-purple-600"
+                    placeholder="Nombre y apellidos"
+                    data-required="true"
+                  />
+                  <p
+                    class="mt-1 text-xs text-red-600 hidden"
+                    data-error-for="full-name"
+                  >
+                    Este campo es obligatorio.
+                  </p>
+                </div>
+
+                <!-- Dirección -->
+                <div>
+                  <label
+                    for="address-line1"
+                    class="block text-sm font-medium text-gray-700 mb-1"
+                    >Dirección</label
+                  >
+                  <input
+                    id="address-line1"
+                    name="addressLine1"
+                    type="text"
+                    autocomplete="address-line1"
+                    required
+                    class="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-600 focus:border-purple-600"
+                    placeholder="Calle, número, apartamento"
+                    data-required="true"
+                  />
+                  <p
+                    class="mt-1 text-xs text-red-600 hidden"
+                    data-error-for="address-line1"
+                  >
+                    Este campo es obligatorio.
+                  </p>
+                </div>
+
+                <!-- Ciudad y Provincia -->
+                <div class="md:flex md:space-x-4 md:space-y-0 space-y-4">
+                  <div class="md:flex-1">
+                    <label
+                      for="city"
+                      class="block text-sm font-medium text-gray-700 mb-1"
+                      >Ciudad</label
+                    >
+                    <input
+                      id="city"
+                      name="city"
+                      type="text"
+                      autocomplete="address-level2"
+                      required
+                      class="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-600 focus:border-purple-600"
+                      placeholder="Ciudad"
+                      data-required="true"
+                    />
+                    <p
+                      class="mt-1 text-xs text-red-600 hidden"
+                      data-error-for="city"
+                    >
+                      Este campo es obligatorio.
+                    </p>
+                  </div>
+                  <div class="md:flex-1">
+                    <label
+                      for="state"
+                      class="block text-sm font-medium text-gray-700 mb-1"
+                      >Provincia / Estado</label
+                    >
+                    <input
+                      id="state"
+                      name="state"
+                      type="text"
+                      autocomplete="address-level1"
+                      required
+                      class="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-600 focus:border-purple-600"
+                      placeholder="Provincia o estado"
+                      data-required="true"
+                    />
+                    <p
+                      class="mt-1 text-xs text-red-600 hidden"
+                      data-error-for="state"
+                    >
+                      Este campo es obligatorio.
+                    </p>
+                  </div>
+                </div>
+
+                <!-- Código Postal -->
+                <div class="md:w-1/2">
+                  <label
+                    for="zip"
+                    class="block text-sm font-medium text-gray-700 mb-1"
+                    >Código Postal</label
+                  >
+                  <input
+                    id="zip"
+                    name="zip"
+                    type="text"
+                    autocomplete="postal-code"
+                    required
+                    class="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-600 focus:border-purple-600"
+                    placeholder="ZIP / CP"
+                    data-required="true"
+                  />
+                  <p
+                    class="mt-1 text-xs text-red-600 hidden"
+                    data-error-for="zip"
+                  >
+                    Este campo es obligatorio.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Sección 2: Método de Pago -->
+            <div class="bg-white rounded-xl shadow-md border border-gray-100 p-6 mb-4">
+              <h2 class="text-lg font-semibold text-purple-800 mb-4">
+                Método de pago
+              </h2>
+
+              <div class="space-y-4">
+                <!-- Nombre en la tarjeta -->
+                <div>
+                  <label
+                    for="card-name"
+                    class="block text-sm font-medium text-gray-700 mb-1"
+                    >Nombre en la tarjeta</label
+                  >
+                  <input
+                    id="card-name"
+                    name="cardName"
+                    type="text"
+                    autocomplete="cc-name"
+                    required
+                    class="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-600 focus:border-purple-600"
+                    placeholder="Como aparece en la tarjeta"
+                    data-required="true"
+                  />
+                  <p
+                    class="mt-1 text-xs text-red-600 hidden"
+                    data-error-for="card-name"
+                  >
+                    Este campo es obligatorio.
+                  </p>
+                </div>
+
+                <!-- Número de tarjeta con detección de marca -->
+                <div>
+                  <label
+                    for="card-number"
+                    class="block text-sm font-medium text-gray-700 mb-1"
+                    >Número de la tarjeta</label
+                  >
+                  <div
+                    class="flex items-center gap-2 rounded-lg border border-gray-300 px-3 py-2 shadow-sm focus-within:ring-2 focus-within:ring-purple-600 focus-within:border-purple-600"
+                  >
+                    <div class="relative w-full">
+                      <input
+                        id="card-number"
+                        name="cardNumber"
+                        type="text"
+                        inputmode="numeric"
+                        autocomplete="cc-number"
+                        required
+                        class="block w-full border-none bg-transparent pr-16 text-sm focus:outline-none focus:ring-0"
+                        placeholder="1234 5678 9012 3456"
+                        data-required="true"
+                      />
+                      <!-- Badge genérico de tarjeta Plux -->
+                      <span
+                        id="card-brand-badge"
+                        class="absolute right-3 top-1/2 -translate-y-1/2 inline-flex items-center justify-center rounded bg-purple-50 px-2 py-1 text-sm font-medium text-purple-700 whitespace-nowrap"
+                      >
+                        Card
+                      </span>
+                      <!-- Logo dinámico de franquicia -->
+                      <img
+                        id="card-brand-logo"
+                        src=""
+                        alt=""
+                        class="card-brand-logo hidden h-6 absolute right-3 top-1/2 -translate-y-1/2"
+                      />
+                    </div>
+                  </div>
+                  <p
+                    class="mt-1 text-xs text-red-600 hidden"
+                    data-error-for="card-number"
+                  >
+                    Ingresa un número de tarjeta válido.
+                  </p>
+                  <p class="mt-1 text-xs text-gray-500">
+                    Aceptamos Visa, Mastercard y American Express. Tus datos se
+                    procesan de forma
+                    segura con Plux.
+                  </p>
+                </div>
+
+                <!-- Expiración y CVC -->
+                <div class="md:flex md:space-x-4 md:space-y-0 space-y-4">
+                  <div class="md:flex-1">
+                    <label
+                      for="card-expiry"
+                      class="block text-sm font-medium text-gray-700 mb-1"
+                      >Fecha de expiración</label
+                    >
+                    <input
+                      id="card-expiry"
+                      name="cardExpiry"
+                      type="text"
+                      inputmode="numeric"
+                      autocomplete="cc-exp"
+                      required
+                      class="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-600 focus:border-purple-600"
+                      placeholder="MM/YY"
+                      data-required="true"
+                    />
+                    <p
+                      class="mt-1 text-xs text-red-600 hidden"
+                      data-error-for="card-expiry"
+                    >
+                      Usa el formato MM/YY.
+                    </p>
+                  </div>
+                  <div class="md:w-32">
+                    <label
+                      for="card-cvc"
+                      class="block text-sm font-medium text-gray-700 mb-1"
+                      >CVC</label
+                    >
+                    <input
+                      id="card-cvc"
+                      name="cardCvc"
+                      type="text"
+                      inputmode="numeric"
+                      autocomplete="cc-csc"
+                      required
+                      class="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-600 focus:border-purple-600"
+                      placeholder="3 o 4 dígitos"
+                      data-required="true"
+                    />
+                    <p
+                      class="mt-1 text-xs text-red-600 hidden"
+                      data-error-for="card-cvc"
+                    >
+                      Ingresa un CVC válido.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </form>
+        </section>
+
+        <!-- Columna derecha: resumen de compra -->
+        <aside class="mt-4 md:mt-0">
+          <div class="bg-white rounded-xl shadow-md border border-gray-100 p-6">
+            <h2 class="text-lg font-semibold text-purple-800 mb-4">
+              Resumen de compra
+            </h2>
+
+            <dl class="space-y-2 text-sm">
+              <div class="flex justify-between">
+                <dt class="text-gray-600">Subtotal</dt>
+                <dd id="order-subtotal" class="font-medium text-gray-900">
+                  $49.99
+                </dd>
+              </div>
+              <div class="flex justify-between">
+                <dt class="text-gray-600">Impuestos</dt>
+                <dd id="order-taxes" class="font-medium text-gray-900">
+                  $8.00
+                </dd>
+              </div>
+              <div class="flex justify-between">
+                <dt class="text-gray-600">Envío</dt>
+                <dd id="order-shipping" class="font-medium text-green-700">
+                  Gratis
+                </dd>
+              </div>
+              <hr class="my-2 border-gray-200" />
+              <div class="flex justify-between items-baseline">
+                <dt class="text-base font-semibold text-gray-900">Total</dt>
+                <dd
+                  id="order-total"
+                  class="text-lg font-bold text-gray-900 tracking-tight"
+                >
+                  $57.99
+                </dd>
+              </div>
+            </dl>
+
+            <p class="mt-3 text-xs text-gray-500">
+              El pago se procesará de forma segura a través de Plux. Puedes ver
+              el detalle completo en tu historial de movimientos.
+            </p>
+
+            <button
+              id="pay-button"
+              type="submit"
+              form="checkout-form"
+              class="mt-5 inline-flex w-full items-center justify-center rounded-lg bg-orange-500 px-4 py-3 text-sm font-semibold text-white shadow-md transition hover:bg-orange-600 focus:outline-none focus:ring-2 focus:ring-orange-400 focus:ring-offset-2 focus:ring-offset-white"
+            >
+              <span
+                id="pay-button-text"
+                class="inline-flex items-center justify-center gap-2"
+              >
+                Pagar ahora
+              </span>
+              <span
+                id="pay-button-loading"
+                class="hidden items-center justify-center gap-2"
+              >
+                <span
+                  class="spinner h-4 w-4 border-white border-r-transparent animate-spin"
+                ></span>
+                <span>Procesando...</span>
+              </span>
+            </button>
+
+            <div class="mt-3 flex items-center gap-2 text-[11px] text-gray-500">
+              <span class="inline-block h-4 w-4 rounded-full border border-gray-400"></span>
+              <span>Protegido por protocolos de seguridad de Plux.</span>
+            </div>
+          </div>
+        </aside>
+      </div>
+    </main>
+
+    <!-- Lógica de checkout Plux -->
+    <script src="./checkout.js"></script>
+  </body>
+</html>
+
