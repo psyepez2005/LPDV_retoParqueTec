@@ -64,6 +64,8 @@ from app.services.gps_ip_mismatch import gps_ip_mismatch_detector
 from app.services.session_guard import session_guard
 from app.services.card_testing_detector import card_testing_detector
 from app.services.time_pattern_scorer import time_pattern_scorer
+from fastapi import Header
+
 
 logger = logging.getLogger(__name__)
 
@@ -328,7 +330,21 @@ class FraudOrchestrator:
     def p2p_analyzer(self) -> P2PAnalyzer:
         self._ensure_redis_modules()
         return self._p2p_analyzer  # type: ignore
-
+    
+    def verify_incoming_hmac(self, payload: dict, received_sig: str) -> bool:
+        """
+        Verifica que el cuerpo de la transacción coincida con la firma enviada.
+        Garantiza que nadie cambió el monto o el user_id en el camino.
+        """
+        # Usamos el mismo secreto definido en el archivo
+        secret = os.environ.get("FRAUD_HMAC_SECRET", "dev-secret...").encode()
+        
+        # El payload debe convertirse a string de forma determinista para que el hash coincida
+        data = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
+        
+        # Generamos la firma local y comparamos
+        expected_sig = hmac_lib.new(secret, data, hashlib.sha256).hexdigest()
+        return hmac_lib.compare_digest(expected_sig, received_sig)
 
     async def evaluate_transaction(
         self,

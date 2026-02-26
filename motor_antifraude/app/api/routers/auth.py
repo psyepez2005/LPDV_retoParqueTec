@@ -12,6 +12,10 @@ from app.domain.schemas import (
 )
 from app.api.dependencies import get_db_session
 from app.services.auth_service import auth_service
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.ext.asyncio import AsyncSession
+from app.core.security import SecurityManager 
+
 
 router = APIRouter(prefix="/v1/auth", tags=["Autenticación"])
 
@@ -78,20 +82,38 @@ async def register(
         raise HTTPException(status_code=e.status_code, detail=e.message)
 
 
-@router.post(
-    "/login",
-    response_model = UserLoginResponse,
-    summary        = "Iniciar sesión",
-)
+@router.post("/login")
 async def login(
     payload: UserLoginRequest,
     db: AsyncSession = Depends(get_db_session),
 ):
     try:
-        return await auth_service.login(
+        # 1. El servicio valida email_hash y password
+        user = await auth_service.login(
             db       = db,
             email    = payload.email,
             password = payload.password,
         )
+
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED, 
+                detail="Credenciales inválidas"
+            )
+
+        # 2. Generamos el Token JWT (La "llave" de acceso)
+        # El 'sub' (subject) del token será el ID único del usuario
+        access_token = SecurityManager.create_access_token(
+            data={"sub": str(user.id)}
+        )
+
+        # 3. Retornamos el token al frontend/wallet
+        return {
+            "access_token": access_token,
+            "token_type": "bearer",
+            "message": "Bienvenido a Plux",
+            "user_id": str(user.id)
+        }
+
     except FraudMotorException as e:
         raise HTTPException(status_code=e.status_code, detail=e.message)

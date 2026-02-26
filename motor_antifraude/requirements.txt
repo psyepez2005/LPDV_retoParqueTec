@@ -35,6 +35,8 @@ websockets==16.0
 bcrypt
 PyJWT
 cryptography
-
+python-jose[cryptography]
+passlib[bcrypt]
+python-multipart
 # Email
 aiosmtplib

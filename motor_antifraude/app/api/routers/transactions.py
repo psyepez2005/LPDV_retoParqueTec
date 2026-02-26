@@ -1,23 +1,26 @@
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Request, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies import get_db_session
 from app.domain.schemas import TransactionPayload, FraudEvaluationResponse
 from app.services.fraud_orchestrator import fraud_orchestrator
 
+from app.api.deps import get_current_user, validate_hmac_integrity 
 router = APIRouter(prefix="/v1/transactions", tags=["Transactions"])
-
 
 @router.post("/evaluate", response_model=FraudEvaluationResponse)
 async def evaluate_transaction(
-    payload:  TransactionPayload,
-    request:  Request,
-    db:       AsyncSession = Depends(get_db_session),
+    payload: TransactionPayload,
+    request: Request,
+    db: AsyncSession = Depends(get_db_session),
+
+    current_user_id: str = Depends(get_current_user),
+
+    _verified_payload: dict = Depends(validate_hmac_integrity)
 ) -> FraudEvaluationResponse:
 
-
-    payload.ip_address  = getattr(request.state, "ip_address",  payload.ip_address)
+    payload.ip_address = getattr(request.state, "ip_address", payload.ip_address)
 
     object.__setattr__(payload, "ip_country",  getattr(request.state, "ip_country",  "XX"))
     object.__setattr__(payload, "bin_country", getattr(request.state, "bin_country", "XX"))
@@ -26,4 +29,5 @@ async def evaluate_transaction(
     object.__setattr__(payload, "card_brand",  getattr(request.state, "card_brand",  "unknown"))
 
     response = await fraud_orchestrator.evaluate_transaction(payload, db=db)
+    
     return response
