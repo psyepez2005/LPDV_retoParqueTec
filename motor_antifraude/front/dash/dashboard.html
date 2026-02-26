@@ -8,11 +8,17 @@
     <meta name="description"
         content="Panel analítico de monitoreo antifraude en tiempo real para analistas de riesgo de Plux." />
 
-    <!-- Tailwind CSS vía CDN -->
+    <!-- Tailwind CSS vía CDN (Play CDN) -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Seguro de emergencia: evitar que SVGs sin clase exploten el layout -->
+    <style>
+        svg {
+            overflow: hidden;
+        }
+    </style>
 
     <!-- Estilos personalizados compartidos -->
-    <link rel="stylesheet" href="/motor_antifraude/front/styles.css" />
+    <link rel="stylesheet" href="../styles.css" />
 </head>
 
 <!-- .dash-page activa el tema claro de dashboard definido en styles.css -->
@@ -26,7 +32,7 @@
             <!-- Botón Volver -->
             <a href="../motor/index.html"
                 class="inline-flex items-center gap-2 rounded-lg border border-purple-200 bg-purple-50 px-3.5 py-1.5 text-xs font-semibold text-purple-700 hover:bg-purple-100 active:scale-95 transition-all">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none"
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
                     stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                     <polyline points="15 18 9 12 15 6" />
                 </svg>
@@ -36,9 +42,9 @@
             <!-- Título central -->
             <div class="flex items-center gap-3">
                 <div class="h-8 w-8 rounded-lg bg-orange-100 border border-orange-200 flex items-center justify-center">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-orange-500" viewBox="0 0 24 24"
-                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                        stroke-linejoin="round">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                        class="text-orange-500">
                         <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
                     </svg>
                 </div>
