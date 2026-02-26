@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -9,8 +10,9 @@
   <script src="https://cdn.tailwindcss.com"></script>
 
   <!-- Estilos personalizados -->
-  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="/motor_antifraude/front/styles.css" />
 </head>
+
 <body class="min-h-screen bg-gray-50 font-sans text-gray-900">
   <div class="min-h-screen flex flex-col">
     <!-- Header -->
@@ -24,9 +26,21 @@
             Panel interno para analistas de riesgo · Modo demo
           </p>
         </div>
-        <div class="hidden sm:flex items-center gap-2 text-xs text-gray-400">
+        <div class="hidden sm:flex items-center gap-3 text-xs text-gray-400">
           <span class="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_0_4px_rgba(16,185,129,0.35)]"></span>
           <span>Motor antifraude simulado</span>
+          <!-- Navega a la pantalla independiente del Dashboard -->
+          <a href="dashboard.html"
+            class="ml-2 inline-flex items-center gap-1.5 rounded-lg bg-orange-500 px-3 py-1.5 text-[11px] font-semibold text-white shadow-md shadow-orange-500/30 hover:bg-orange-600 active:scale-95 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-400">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="3" width="7" height="7" />
+              <rect x="14" y="3" width="7" height="7" />
+              <rect x="3" y="14" width="7" height="7" />
+              <rect x="14" y="14" width="7" height="7" />
+            </svg>
+            Dashboard Antifraude
+          </a>
         </div>
       </div>
     </header>
@@ -36,10 +50,7 @@
       <div class="max-w-6xl mx-auto px-4 py-6 md:py-10">
         <div class="grid gap-6 lg:gap-8 md:grid-cols-2">
           <!-- Columna izquierda: Entrada de datos -->
-          <section
-            id="input-panel"
-            class="bg-white rounded-2xl shadow-xl p-5 md:p-7 flex flex-col gap-4"
-          >
+          <section id="input-panel" class="bg-white rounded-2xl shadow-xl p-5 md:p-7 flex flex-col gap-4">
             <div class="flex items-start justify-between gap-3">
               <div>
                 <h2 class="text-lg md:text-xl font-semibold text-gray-900">
@@ -50,27 +61,21 @@
                 </p>
               </div>
               <span
-                class="inline-flex items-center rounded-full bg-purple-50 px-3 py-1 text-[11px] font-medium text-purple-700 border border-purple-100"
-              >
+                class="inline-flex items-center rounded-full bg-purple-50 px-3 py-1 text-[11px] font-medium text-purple-700 border border-purple-100">
                 v1 · Demo
               </span>
             </div>
 
             <div class="flex-1 flex flex-col gap-2">
-              <label
-                for="payloadInput"
-                class="text-xs font-medium text-gray-700 flex items-center justify-between"
-              >
+              <label for="payloadInput" class="text-xs font-medium text-gray-700 flex items-center justify-between">
                 Payload JSON de la transacción
                 <span class="text-[11px] text-gray-400">
                   Campos típicos: monto, país, IP, dispositivo…
                 </span>
               </label>
-              <textarea
-                id="payloadInput"
+              <textarea id="payloadInput"
                 class="w-full min-h-[220px] md:min-h-[260px] resize-y rounded-xl border border-gray-200 bg-gray-50/60 px-3.5 py-3 text-xs md:text-sm text-gray-800 leading-relaxed shadow-inner-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                spellcheck="false"
-                placeholder='{
+                spellcheck="false" placeholder='{
   "user_id": "USR-992834",
   "device_id": "ABC-123-XYZ",
   "card_data": "ENC_TOKEN_882",
@@ -95,8 +100,7 @@
   "timestamp": "2026-02-24T12:00:00Z",
   "user_agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0)",
   "sdk_version": "2.4.1"
-}'
-              ></textarea>
+}'></textarea>
               <p class="text-[11px] text-gray-400">
                 Nota: para la demo el contenido se usa de forma simulada; la integración real consultará al
                 backend en FastAPI.
@@ -104,25 +108,17 @@
             </div>
 
             <div class="mt-2 space-y-3">
-              <button
-                id="analyzeButton"
-                type="button"
-                class="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-orange-500 px-4 py-3.5 text-sm md:text-base font-semibold text-white shadow-lg shadow-orange-500/30 hover:bg-orange-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-orange-500 active:scale-[0.98] transition-all"
-              >
+              <button id="analyzeButton" type="button"
+                class="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-orange-500 px-4 py-3.5 text-sm md:text-base font-semibold text-white shadow-lg shadow-orange-500/30 hover:bg-orange-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-orange-500 active:scale-[0.98] transition-all">
                 <span>Ejecutar Análisis de Riesgo</span>
               </button>
 
               <div class="space-y-1.5">
-                <label
-                  for="scenarioSelect"
-                  class="text-xs font-medium text-gray-700"
-                >
-                  Forzar Escenario 
+                <label for="scenarioSelect" class="text-xs font-medium text-gray-700">
+                  Forzar Escenario
                 </label>
-                <select
-                  id="scenarioSelect"
-                  class="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs md:text-sm text-gray-800 shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                >
+                <select id="scenarioSelect"
+                  class="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs md:text-sm text-gray-800 shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500">
                   <option value="random">Aleatorio</option>
                   <option value="approved">Aprobado (0-20)</option>
                   <option value="suspicious">Sospechoso (21-69)</option>
@@ -137,10 +133,7 @@
           </section>
 
           <!-- Columna derecha: Resultados -->
-          <section
-            id="results-panel"
-            class="bg-white rounded-2xl shadow-xl p-5 md:p-7 flex flex-col gap-4"
-          >
+          <section id="results-panel" class="bg-white rounded-2xl shadow-xl p-5 md:p-7 flex flex-col gap-4">
             <div class="flex items-start justify-between gap-3">
               <div>
                 <h2 class="text-lg md:text-xl font-semibold text-gray-900">
@@ -153,13 +146,9 @@
             </div>
 
             <!-- Estado inicial -->
-            <div
-              id="stateInitial"
-              class="flex flex-col items-center justify-center text-center gap-3 py-10 px-4 border border-dashed border-gray-200 rounded-2xl bg-gray-50/60"
-            >
-              <div
-                class="h-11 w-11 rounded-2xl bg-purple-50 border border-purple-100 flex items-center justify-center"
-              >
+            <div id="stateInitial"
+              class="flex flex-col items-center justify-center text-center gap-3 py-10 px-4 border border-dashed border-gray-200 rounded-2xl bg-gray-50/60">
+              <div class="h-11 w-11 rounded-2xl bg-purple-50 border border-purple-100 flex items-center justify-center">
                 <div class="h-6 w-6 rounded-xl border-2 border-purple-500 border-t-transparent animate-spin-slow"></div>
               </div>
               <div class="space-y-1">
@@ -176,9 +165,7 @@
             <!-- Estado de carga -->
             <div id="stateLoading" class="hidden space-y-4 py-4">
               <div class="flex items-center gap-3">
-                <div
-                  class="h-9 w-9 rounded-full border-2 border-purple-200 border-t-purple-600 animate-spin"
-                ></div>
+                <div class="h-9 w-9 rounded-full border-2 border-purple-200 border-t-purple-600 animate-spin"></div>
                 <div>
                   <p class="text-sm font-medium text-gray-800">
                     Ejecutando motor antifraude...
@@ -202,20 +189,15 @@
             <!-- Estado de resultado -->
             <div id="stateResult" class="hidden space-y-6 mt-1">
               <div class="flex items-baseline gap-3">
-                <span
-                  id="scoreValue"
-                  class="text-5xl md:text-6xl font-bold text-emerald-600 tracking-tight"
-                >
+                <span id="scoreValue" class="text-5xl md:text-6xl font-bold text-emerald-600 tracking-tight">
                   0
                 </span>
                 <div class="flex flex-col gap-1">
                   <span class="text-xs font-medium tracking-wide text-gray-500 uppercase">
                     Score de Riesgo
                   </span>
-                  <span
-                    id="verdictChip"
-                    class="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200"
-                  >
+                  <span id="verdictChip"
+                    class="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
                     Aprobada
                   </span>
                 </div>
@@ -228,27 +210,16 @@
                   <span>100</span>
                 </div>
                 <div class="h-3 rounded-full bg-gray-100 overflow-hidden">
-                  <div
-                    id="scoreBar"
-                    class="h-full w-0 rounded-full bg-emerald-500 transition-all duration-700 ease-out"
-                  ></div>
+                  <div id="scoreBar"
+                    class="h-full w-0 rounded-full bg-emerald-500 transition-all duration-700 ease-out"></div>
                 </div>
               </div>
 
-              <div
-                id="verdictAlert"
-                class="border-l-4 rounded-xl px-4 py-3 bg-emerald-50 border-emerald-500"
-              >
-                <p
-                  id="verdictTitle"
-                  class="text-sm font-semibold text-emerald-700 mb-0.5"
-                >
+              <div id="verdictAlert" class="border-l-4 rounded-xl px-4 py-3 bg-emerald-50 border-emerald-500">
+                <p id="verdictTitle" class="text-sm font-semibold text-emerald-700 mb-0.5">
                   Aprobada - Transacción Segura
                 </p>
-                <p
-                  id="verdictMessage"
-                  class="text-xs md:text-sm text-emerald-800/90"
-                >
+                <p id="verdictMessage" class="text-xs md:text-sm text-emerald-800/90">
                   Pasa directa sin problemas. El score de riesgo es bajo y el patrón de uso es consistente con
                   el historial habitual.
                 </p>
@@ -270,4 +241,5 @@
   <!-- Lógica de la SPA -->
   <script src="app.js" defer></script>
 </body>
+
 </html>
