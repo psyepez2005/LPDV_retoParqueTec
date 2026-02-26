@@ -5,241 +5,717 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Plux | Motor de Prevención de Fraude</title>
+  <meta name="description" content="Motor antifraude de Plux — Análisis de riesgo transaccional en tiempo real." />
 
-  <!-- Tailwind CSS vía CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
-
-  <!-- Estilos personalizados -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="../styles.css" />
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: #f4f3f9;
+      min-height: 100vh;
+      color: #1e1b2e;
+    }
+
+    /* ── Header ──────────────────────────── */
+    .motor-header {
+      background: white;
+      border-bottom: 1px solid #ede9fe;
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      box-shadow: 0 1px 8px rgba(124, 58, 237, 0.07);
+    }
+
+    .header-inner {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 1.5rem;
+      height: 64px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+    }
+
+    .logo-mark {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .logo-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, #7c3aed, #9333ea);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 12px rgba(124, 58, 237, 0.35);
+    }
+
+    .live-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: #f0fdf4;
+      border: 1px solid #bbf7d0;
+      color: #166534;
+      border-radius: 999px;
+      padding: 4px 12px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .live-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #22c55e;
+      animation: pulse 1.5s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+
+      0%,
+      100% {
+        opacity: 1;
+        transform: scale(1);
+      }
+
+      50% {
+        opacity: 0.6;
+        transform: scale(0.85);
+      }
+    }
+
+    .header-nav-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 16px;
+      border-radius: 10px;
+      font-size: 13px;
+      font-weight: 600;
+      text-decoration: none;
+      transition: all 0.15s;
+      cursor: pointer;
+    }
+
+    .btn-ghost {
+      color: #7c3aed;
+      border: 1.5px solid #ede9fe;
+      background: transparent;
+    }
+
+    .btn-ghost:hover {
+      background: #f5f3ff;
+      border-color: #c4b5fd;
+    }
+
+    .btn-orange {
+      background: linear-gradient(135deg, #f97316, #ea580c);
+      color: white;
+      border: none;
+      box-shadow: 0 4px 12px rgba(249, 115, 22, 0.35);
+    }
+
+    .btn-orange:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 18px rgba(249, 115, 22, 0.45);
+    }
+
+    .btn-destructive {
+      color: #6b7280;
+      border: 1.5px solid #e5e7eb;
+      background: transparent;
+      font-size: 12px;
+      padding: 6px 12px;
+    }
+
+    .btn-destructive:hover {
+      background: #fef2f2;
+      color: #b91c1c;
+      border-color: #fca5a5;
+    }
+
+    /* ── Layout principal ─────────────────── */
+    .motor-main {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 2rem 1.5rem;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
+      align-items: start;
+    }
+
+    @media (max-width: 900px) {
+      .motor-main {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* ── Cards ────────────────────────────── */
+    .motor-card {
+      background: white;
+      border-radius: 20px;
+      border: 1px solid #ede9fe;
+      box-shadow: 0 2px 12px rgba(124, 58, 237, 0.07);
+      overflow: hidden;
+    }
+
+    .card-header {
+      padding: 1.25rem 1.5rem;
+      border-bottom: 1px solid #f3f4f6;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+    }
+
+    .card-title {
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: #111827;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .card-icon {
+      width: 30px;
+      height: 30px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .card-body {
+      padding: 1.5rem;
+    }
+
+    /* ── Textarea ────────────────────────── */
+    .payload-textarea {
+      width: 100%;
+      min-height: 260px;
+      resize: vertical;
+      border: 1.5px solid #e5e7eb;
+      border-radius: 12px;
+      background: #f9fafb;
+      padding: 14px;
+      font-size: 12.5px;
+      font-family: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
+      line-height: 1.65;
+      color: #374151;
+      transition: border-color 0.2s, box-shadow 0.2s;
+      outline: none;
+    }
+
+    .payload-textarea:focus {
+      border-color: #7c3aed;
+      box-shadow: 0 0 0 4px rgba(124, 58, 237, 0.08);
+      background: white;
+    }
+
+    /* ── Botón analizar ──────────────────── */
+    .btn-analyze {
+      width: 100%;
+      padding: 1rem;
+      border-radius: 14px;
+      background: linear-gradient(135deg, #f97316, #ea580c);
+      color: white;
+      font-weight: 700;
+      font-size: 0.95rem;
+      border: none;
+      cursor: pointer;
+      box-shadow: 0 6px 20px rgba(249, 115, 22, 0.38);
+      transition: transform 0.15s, box-shadow 0.15s, opacity 0.15s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .btn-analyze:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 28px rgba(249, 115, 22, 0.48);
+    }
+
+    .btn-analyze:active {
+      transform: translateY(0);
+    }
+
+    /* ── Selector de escenario ──────────── */
+    .scenario-select {
+      width: 100%;
+      padding: 10px 14px;
+      border: 1.5px solid #e5e7eb;
+      border-radius: 10px;
+      background: white;
+      font-size: 13px;
+      color: #374151;
+      font-weight: 500;
+      cursor: pointer;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .scenario-select:focus {
+      border-color: #7c3aed;
+      box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.1);
+    }
+
+    /* ── Panel resultado ─────────────────── */
+    .state-initial {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 3rem 2rem;
+      border: 2px dashed #e9d5ff;
+      border-radius: 16px;
+      background: #faf5ff;
+    }
+
+    .initial-icon {
+      width: 56px;
+      height: 56px;
+      border-radius: 16px;
+      background: #ede9fe;
+      border: 1px solid #ddd6fe;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 1rem;
+    }
+
+    .state-loading {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      padding: 1rem 0;
+    }
+
+    .loading-bar {
+      height: 12px;
+      border-radius: 999px;
+      background: linear-gradient(90deg, #ede9fe 0%, #c4b5fd 50%, #ede9fe 100%);
+      background-size: 200% 100%;
+      animation: shimmer 1.4s ease-in-out infinite;
+    }
+
+    @keyframes shimmer {
+      0% {
+        background-position: 200% 0;
+      }
+
+      100% {
+        background-position: -200% 0;
+      }
+    }
+
+    /* Score display */
+    .score-display {
+      display: flex;
+      align-items: baseline;
+      gap: 16px;
+      margin-bottom: 1.5rem;
+    }
+
+    .score-number {
+      font-size: 5rem;
+      font-weight: 800;
+      line-height: 1;
+      letter-spacing: -0.04em;
+      transition: color 0.4s;
+    }
+
+    .verdict-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 14px;
+      border-radius: 999px;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.01em;
+    }
+
+    /* Score bar */
+    .risk-bar-track {
+      height: 12px;
+      border-radius: 999px;
+      background: linear-gradient(to right, #d1fae5, #fef3c7, #fee2e2);
+      position: relative;
+      overflow: hidden;
+      box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.08);
+    }
+
+    .risk-bar-fill {
+      height: 100%;
+      width: 0;
+      border-radius: 999px;
+      transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+      position: relative;
+    }
+
+    .risk-bar-fill::after {
+      content: '';
+      position: absolute;
+      right: 0;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: inherit;
+      box-shadow: 0 0 0 3px white, 0 0 0 5px currentColor;
+    }
+
+    /* Verdict alert */
+    .verdict-alert {
+      border-radius: 14px;
+      padding: 1rem 1.25rem;
+      border-left: 4px solid;
+    }
+
+    /* Score markers */
+    .score-markers {
+      display: flex;
+      justify-content: space-between;
+      font-size: 10px;
+      color: #9ca3af;
+      margin-top: 6px;
+    }
+
+    /* Tag de escenario */
+    .scenario-tag {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      padding: 3px 8px;
+      border-radius: 6px;
+    }
+
+    /* Spinner del botón */
+    .btn-spinner-orange {
+      border: 2px solid rgba(255, 255, 255, 0.35);
+      border-top-color: #fff;
+      border-radius: 50%;
+      width: 18px;
+      height: 18px;
+      animation: spin 0.7s linear infinite;
+      display: none;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+  </style>
 </head>
 
-<body class="min-h-screen bg-gray-50 font-sans text-gray-900">
-  <div class="min-h-screen flex flex-col">
-    <!-- Header -->
-    <header class="backdrop-blur bg-white/80 border-b border-gray-200">
-      <div class="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between gap-4">
-        <div>
-          <h1 class="text-xl md:text-2xl font-semibold text-purple-800">
-            Plux | Motor de Prevención de Fraude
-          </h1>
-          <p class="text-xs md:text-sm text-gray-500">
-            Panel interno para analistas de riesgo · Modo demo
-          </p>
+<body>
+
+  <!-- ── HEADER ─────────────────────────────────────────────────── -->
+  <header class="motor-header">
+    <div class="header-inner">
+
+      <!-- Logo -->
+      <div class="logo-mark">
+        <div class="logo-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" stroke="white" stroke-width="2.2"
+            stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+          </svg>
         </div>
-        <div class="hidden sm:flex items-center gap-3 text-xs text-gray-400">
-          <span class="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_0_4px_rgba(16,185,129,0.35)]"></span>
-          <span>Motor antifraude simulado</span>
-          <!-- Navega a la pantalla independiente del Dashboard -->
-          <a href="../dash/dashboard.html"
-            class="ml-2 inline-flex items-center gap-1.5 rounded-lg bg-orange-500 px-3 py-1.5 text-[11px] font-semibold text-white shadow-md shadow-orange-500/30 hover:bg-orange-600 active:scale-95 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-400">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none"
-              stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-              <rect x="3" y="3" width="7" height="7" />
-              <rect x="14" y="3" width="7" height="7" />
-              <rect x="3" y="14" width="7" height="7" />
-              <rect x="14" y="14" width="7" height="7" />
-            </svg>
-            Dashboard Antifraude
-          </a>
+        <div>
+          <p style="font-size:15px;font-weight:800;color:#1e1b2e;letter-spacing:-0.02em;line-height:1.1;">Plux</p>
+          <p style="font-size:11px;color:#8b5cf6;font-weight:500;line-height:1.1;">Motor Antifraude v1</p>
         </div>
       </div>
-    </header>
 
-    <!-- Contenido principal -->
-    <main class="flex-1">
-      <div class="max-w-6xl mx-auto px-4 py-6 md:py-10">
-        <div class="grid gap-6 lg:gap-8 md:grid-cols-2">
-          <!-- Columna izquierda: Entrada de datos -->
-          <section id="input-panel" class="bg-white rounded-2xl shadow-xl p-5 md:p-7 flex flex-col gap-4">
-            <div class="flex items-start justify-between gap-3">
-              <div>
-                <h2 class="text-lg md:text-xl font-semibold text-gray-900">
-                  Entrada de transacción
-                </h2>
-                <p class="text-xs md:text-sm text-gray-500 mt-1">
-                  Pega aquí el <span class="font-medium">payload JSON</span> de la operación a evaluar.
-                </p>
-              </div>
-              <span
-                class="inline-flex items-center rounded-full bg-purple-50 px-3 py-1 text-[11px] font-medium text-purple-700 border border-purple-100">
-                v1 · Demo
-              </span>
+      <!-- Centro -->
+      <div class="live-badge">
+        <div class="live-dot"></div>
+        Motor activo
+      </div>
+
+      <!-- Acciones -->
+      <div style="display:flex;align-items:center;gap:8px;">
+        <a href="../dash/dashboard.html" class="header-nav-btn btn-orange">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" stroke="currentColor"
+            stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+            <rect x="3" y="3" width="7" height="7" />
+            <rect x="14" y="3" width="7" height="7" />
+            <rect x="3" y="14" width="7" height="7" />
+            <rect x="14" y="14" width="7" height="7" />
+          </svg>
+          Dashboard
+        </a>
+        <button onclick="handleLogout()" class="header-nav-btn btn-destructive">
+          <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" stroke="currentColor"
+            stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+            <polyline points="16 17 21 12 16 7" />
+            <line x1="21" y1="12" x2="9" y2="12" />
+          </svg>
+          Salir
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ── CONTENIDO PRINCIPAL ────────────────────────────────────── -->
+  <main class="motor-main">
+
+    <!-- ── COLUMNA IZQUIERDA: Input ──────────────────────── -->
+    <div style="display:flex;flex-direction:column;gap:1.25rem;">
+
+      <!-- Card de entrada -->
+      <div class="motor-card">
+        <div class="card-header">
+          <div class="card-title">
+            <div class="card-icon" style="background:#fff7ed;border:1px solid #fed7aa;">
+              <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" stroke="#f97316"
+                stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+              </svg>
             </div>
-
-            <div class="flex-1 flex flex-col gap-2">
-              <label for="payloadInput" class="text-xs font-medium text-gray-700 flex items-center justify-between">
-                Payload JSON de la transacción
-                <span class="text-[11px] text-gray-400">
-                  Campos típicos: monto, país, IP, dispositivo…
-                </span>
-              </label>
-              <textarea id="payloadInput"
-                class="w-full min-h-[220px] md:min-h-[260px] resize-y rounded-xl border border-gray-200 bg-gray-50/60 px-3.5 py-3 text-xs md:text-sm text-gray-800 leading-relaxed shadow-inner-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                spellcheck="false" placeholder='{
+            Payload de Transacción
+          </div>
+          <span
+            style="font-size:11px;background:#f5f3ff;color:#7c3aed;border:1px solid #ede9fe;padding:3px 10px;border-radius:999px;font-weight:600;">JSON
+            · v1</span>
+        </div>
+        <div class="card-body" style="display:flex;flex-direction:column;gap:1rem;">
+          <div>
+            <label for="payloadInput"
+              style="display:flex;align-items:center;justify-content:space-between;font-size:12px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px;">
+              <span>Datos de la operación</span>
+              <span style="font-weight:400;text-transform:none;letter-spacing:0;">Campos: monto, IP, dispositivo…</span>
+            </label>
+            <textarea id="payloadInput" class="payload-textarea" spellcheck="false" placeholder='{
   "user_id": "USR-992834",
   "device_id": "ABC-123-XYZ",
-  "card_data": "ENC_TOKEN_882",
+  "card_bin": "411111",
   "amount": 250.00,
   "currency": "USD",
-  "origin_country": "CR",
-  "destination_country": "US",
-  "channel": "APP",
-  "client_ip": "192.168.0.1",
-  "card_details": {
-    "type": "CREDIT",
-    "cardholder_name": "JUAN PEREZ",
-    "card_number": "4111XXXXXXXX1111",
-    "expiry_date": "12/28",
-    "cvv": "123",
-    "card_issuer": "VISA"
-  },
+  "ip_address": "192.168.0.1",
   "latitude": 9.9281,
   "longitude": -84.0907,
-  "transaction_type": "PURCHASE",
+  "transaction_type": "PAYMENT",
   "session_id": "SESS-7721-B",
-  "timestamp": "2026-02-24T12:00:00Z",
-  "user_agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0)",
+  "timestamp": "2026-02-26T12:00:00Z",
+  "user_agent": "Mozilla/5.0",
   "sdk_version": "2.4.1"
 }'></textarea>
-              <p class="text-[11px] text-gray-400">
-                Nota: para la demo el contenido se usa de forma simulada; la integración real consultará al
-                backend en FastAPI.
-              </p>
-            </div>
-
-            <div class="mt-2 space-y-3">
-              <button id="analyzeButton" type="button"
-                class="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-orange-500 px-4 py-3.5 text-sm md:text-base font-semibold text-white shadow-lg shadow-orange-500/30 hover:bg-orange-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-orange-500 active:scale-[0.98] transition-all">
-                <span>Ejecutar Análisis de Riesgo</span>
-              </button>
-
-              <div class="space-y-1.5">
-                <label for="scenarioSelect" class="text-xs font-medium text-gray-700">
-                  Forzar Escenario
-                </label>
-                <select id="scenarioSelect"
-                  class="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs md:text-sm text-gray-800 shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500">
-                  <option value="random">Aleatorio</option>
-                  <option value="approved">Aprobado (0-20)</option>
-                  <option value="suspicious">Sospechoso (21-69)</option>
-                  <option value="fraud">Fraude (70-100)</option>
-                </select>
-                <p class="text-[11px] text-gray-400">
-                  Este control solo afecta la simulación en frontend. El motor real consultará tu
-                  endpoint de FastAPI.
-                </p>
-              </div>
-            </div>
-          </section>
-
-          <!-- Columna derecha: Resultados -->
-          <section id="results-panel" class="bg-white rounded-2xl shadow-xl p-5 md:p-7 flex flex-col gap-4">
-            <div class="flex items-start justify-between gap-3">
-              <div>
-                <h2 class="text-lg md:text-xl font-semibold text-gray-900">
-                  Motor de riesgo · Resultado
-                </h2>
-                <p class="text-xs md:text-sm text-gray-500 mt-1">
-                  Estado del análisis en tiempo real según el score de riesgo calculado.
-                </p>
-              </div>
-            </div>
-
-            <!-- Estado inicial -->
-            <div id="stateInitial"
-              class="flex flex-col items-center justify-center text-center gap-3 py-10 px-4 border border-dashed border-gray-200 rounded-2xl bg-gray-50/60">
-              <div class="h-11 w-11 rounded-2xl bg-purple-50 border border-purple-100 flex items-center justify-center">
-                <div class="h-6 w-6 rounded-xl border-2 border-purple-500 border-t-transparent animate-spin-slow"></div>
-              </div>
-              <div class="space-y-1">
-                <p class="text-sm font-medium text-gray-800">
-                  Esperando datos de la transacción...
-                </p>
-                <p class="text-xs text-gray-500">
-                  Ejecuta el análisis con un payload real o de prueba para visualizar el score, la barra de
-                  riesgo y el veredicto.
-                </p>
-              </div>
-            </div>
-
-            <!-- Estado de carga -->
-            <div id="stateLoading" class="hidden space-y-4 py-4">
-              <div class="flex items-center gap-3">
-                <div class="h-9 w-9 rounded-full border-2 border-purple-200 border-t-purple-600 animate-spin"></div>
-                <div>
-                  <p class="text-sm font-medium text-gray-800">
-                    Ejecutando motor antifraude...
-                  </p>
-                  <p class="text-xs text-gray-500">
-                    Simulando llamada al backend de FastAPI (1.5s).
-                  </p>
-                </div>
-              </div>
-
-              <div class="space-y-3 mt-4">
-                <div class="animate-pulse space-y-3">
-                  <div class="h-4 bg-gray-200 rounded w-2/5"></div>
-                  <div class="h-8 bg-gray-200 rounded w-full"></div>
-                  <div class="h-3 bg-gray-200 rounded w-3/4"></div>
-                  <div class="h-3 bg-gray-200 rounded w-1/2"></div>
-                </div>
-              </div>
-            </div>
-
-            <!-- Estado de resultado -->
-            <div id="stateResult" class="hidden space-y-6 mt-1">
-              <div class="flex items-baseline gap-3">
-                <span id="scoreValue" class="text-5xl md:text-6xl font-bold text-emerald-600 tracking-tight">
-                  0
-                </span>
-                <div class="flex flex-col gap-1">
-                  <span class="text-xs font-medium tracking-wide text-gray-500 uppercase">
-                    Score de Riesgo
-                  </span>
-                  <span id="verdictChip"
-                    class="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                    Aprobada
-                  </span>
-                </div>
-              </div>
-
-              <div class="space-y-2">
-                <div class="flex justify-between text-[11px] text-gray-500">
-                  <span>0</span>
-                  <span>Riesgo</span>
-                  <span>100</span>
-                </div>
-                <div class="h-3 rounded-full bg-gray-100 overflow-hidden">
-                  <div id="scoreBar"
-                    class="h-full w-0 rounded-full bg-emerald-500 transition-all duration-700 ease-out"></div>
-                </div>
-              </div>
-
-              <div id="verdictAlert" class="border-l-4 rounded-xl px-4 py-3 bg-emerald-50 border-emerald-500">
-                <p id="verdictTitle" class="text-sm font-semibold text-emerald-700 mb-0.5">
-                  Aprobada - Transacción Segura
-                </p>
-                <p id="verdictMessage" class="text-xs md:text-sm text-emerald-800/90">
-                  Pasa directa sin problemas. El score de riesgo es bajo y el patrón de uso es consistente con
-                  el historial habitual.
-                </p>
-              </div>
-            </div>
-          </section>
+          </div>
+          <p style="font-size:11px;color:#9ca3af;line-height:1.5;">
+            En modo demo el análisis es simulado. La integración real envía el payload al backend FastAPI.
+          </p>
         </div>
       </div>
-    </main>
 
-    <!-- Footer -->
-    <footer class="border-t border-gray-100 py-3">
-      <div class="max-w-6xl mx-auto px-4 flex items-center justify-between text-[11px] text-gray-400">
-        <span>&copy; 2026 LPDV Team | All rights reserved.</span>
+      <!-- Card de control -->
+      <div class="motor-card">
+        <div class="card-body" style="display:flex;flex-direction:column;gap:1rem;">
+          <button id="analyzeButton" type="button" class="btn-analyze">
+            <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" fill="none" stroke="currentColor"
+              stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+              <circle cx="11" cy="11" r="8" />
+              <line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
+            <span id="analyze-text">Ejecutar Análisis de Riesgo</span>
+            <div id="analyze-spinner" class="btn-spinner-orange"></div>
+          </button>
+
+          <div>
+            <label for="scenarioSelect"
+              style="display:block;font-size:12px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:7px;">
+              Forzar escenario de prueba
+            </label>
+            <select id="scenarioSelect" class="scenario-select">
+              <option value="random">🎲 Aleatorio</option>
+              <option value="approved">✅ Aprobado (score 0–20)</option>
+              <option value="suspicious">⚠️ Sospechoso (score 21–69)</option>
+              <option value="fraud">🚨 Fraude detectado (score 70–100)</option>
+            </select>
+            <p style="font-size:11px;color:#9ca3af;margin-top:6px;">Solo afecta la simulación frontend.</p>
+          </div>
+        </div>
       </div>
-    </footer>
-  </div>
+    </div>
+
+    <!-- ── COLUMNA DERECHA: Resultado ────────────────────── -->
+    <div class="motor-card" style="position:sticky;top:80px;">
+      <div class="card-header">
+        <div class="card-title">
+          <div class="card-icon" style="background:#f0fdf4;border:1px solid #bbf7d0;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" stroke="#22c55e" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+            </svg>
+          </div>
+          Resultado del Motor
+        </div>
+        <div id="mode-badge"
+          style="font-size:11px;background:#f5f3ff;color:#7c3aed;border:1px solid #ede9fe;padding:3px 10px;border-radius:999px;font-weight:600;">
+          En espera
+        </div>
+      </div>
+
+      <div class="card-body">
+
+        <!-- Estado inicial -->
+        <div id="stateInitial" class="state-initial">
+          <div class="initial-icon">
+            <div
+              style="width:26px;height:26px;border-radius:8px;border:2.5px solid #8b5cf6;border-top-color:transparent;"
+              class="animate-spin-slow"></div>
+          </div>
+          <p style="font-size:14px;font-weight:600;color:#374151;margin-bottom:6px;">Esperando análisis…</p>
+          <p style="font-size:12px;color:#9ca3af;max-width:260px;line-height:1.5;">Pega el payload JSON y presiona
+            <strong>Ejecutar Análisis</strong> para ver el score de riesgo.</p>
+        </div>
+
+        <!-- Estado cargando -->
+        <div id="stateLoading" class="state-loading" style="display:none;">
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:0.5rem;">
+            <div
+              style="width:36px;height:36px;border-radius:50%;border:2.5px solid #ede9fe;border-top-color:#7c3aed;flex-shrink:0;"
+              class="animate-spin"></div>
+            <div>
+              <p style="font-size:13px;font-weight:600;color:#374151;">Ejecutando motor antifraude…</p>
+              <p style="font-size:11px;color:#9ca3af;">Evaluando 40+ señales de riesgo</p>
+            </div>
+          </div>
+          <div class="loading-bar" style="width:100%;"></div>
+          <div class="loading-bar" style="width:75%;"></div>
+          <div class="loading-bar" style="width:55%;"></div>
+        </div>
+
+        <!-- Estado resultado -->
+        <div id="stateResult" style="display:none;">
+
+          <!-- Score + veredicto chip -->
+          <div class="score-display">
+            <span id="scoreValue" class="score-number" style="color:#22c55e;">0</span>
+            <div style="display:flex;flex-direction:column;gap:6px;padding-bottom:6px;">
+              <span
+                style="font-size:11px;font-weight:600;color:#9ca3af;text-transform:uppercase;letter-spacing:0.08em;">Score
+                de Riesgo</span>
+              <span id="verdictChip" class="verdict-chip" style="background:#d1fae5;color:#065f46;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" stroke="currentColor"
+                  stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+                Aprobada
+              </span>
+            </div>
+          </div>
+
+          <!-- Barra de riesgo -->
+          <div style="margin-bottom:1.25rem;">
+            <div class="risk-bar-track">
+              <div id="scoreBar" class="risk-bar-fill" style="background:linear-gradient(to right,#22c55e,#16a34a);">
+              </div>
+            </div>
+            <div class="score-markers">
+              <span>0 · Seguro</span>
+              <span>50 · Medio</span>
+              <span>100 · Crítico</span>
+            </div>
+          </div>
+
+          <!-- Alerta de veredicto -->
+          <div id="verdictAlert" class="verdict-alert" style="background:#f0fdf4;border-color:#22c55e;">
+            <p id="verdictTitle" style="font-size:13px;font-weight:700;color:#166534;margin-bottom:4px;">Aprobada —
+              Transacción Segura</p>
+            <p id="verdictMessage" style="font-size:13px;color:#166534;line-height:1.55;">
+              Score de riesgo bajo. El patrón de uso es consistente con el historial habitual.
+            </p>
+          </div>
+
+          <!-- Footer del resultado -->
+          <div
+            style="display:flex;align-items:center;justify-content:space-between;margin-top:1rem;padding-top:1rem;border-top:1px solid #f3f4f6;">
+            <span style="font-size:11px;color:#9ca3af;" id="analysis-time">— ms</span>
+            <button onclick="resetState()"
+              style="font-size:12px;color:#9ca3af;background:none;border:none;cursor:pointer;padding:4px 8px;border-radius:6px;transition:background 0.15s;"
+              onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='none'">
+              Nuevo análisis ↺
+            </button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </main>
+
+  <!-- ── FOOTER ─────────────────────────────────────────────────── -->
+  <footer style="border-top:1px solid #ede9fe;margin-top:2rem;padding:1rem 1.5rem;background:white;">
+    <div
+      style="max-width:1200px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;font-size:11px;color:#9ca3af;">
+      <span>© 2026 LPDV Team · Plux Motor Antifraude v1 · Demo</span>
+      <span id="footer-user" style="font-weight:500;"></span>
+    </div>
+  </footer>
 
   <!-- Lógica de la SPA -->
   <script src="app.js" defer></script>
+
+  <script>
+    // Mostrar user en footer
+    const userId = localStorage.getItem('plux_user_id');
+    if (userId) {
+      document.getElementById('footer-user').textContent = `ID: ${userId.slice(0, 8)}…`;
+    }
+
+    // Logout
+    function handleLogout() {
+      localStorage.removeItem('plux_token');
+      localStorage.removeItem('plux_user_id');
+      window.location.href = '../auth/login.html';
+    }
+
+    // Reset estado a inicial
+    function resetState() {
+      document.getElementById('stateResult').style.display = 'none';
+      document.getElementById('stateInitial').style.display = 'flex';
+      document.getElementById('mode-badge').textContent = 'En espera';
+      document.getElementById('mode-badge').style.color = '#7c3aed';
+    }
+
+    // Spinner del botón durante análisis
+    const origAnalyze = window.onAnalyzeStart;
+    document.getElementById('analyzeButton').addEventListener('click', function () {
+      document.getElementById('analyze-spinner').style.display = 'block';
+      document.getElementById('analyze-text').textContent = 'Analizando…';
+      setTimeout(() => {
+        document.getElementById('analyze-spinner').style.display = 'none';
+        document.getElementById('analyze-text').textContent = 'Ejecutar Análisis de Riesgo';
+        document.getElementById('mode-badge').textContent = 'Resultado';
+        const t = Date.now();
+        document.getElementById('analysis-time').textContent = `${Math.floor(Math.random() * 80 + 120)} ms`;
+      }, 1700);
+    }, false);
+  </script>
+
 </body>
 
 </html>

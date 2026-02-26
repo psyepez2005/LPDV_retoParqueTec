@@ -3,38 +3,38 @@
 /* Sombra interior muy ligera para el textarea */
 .shadow-inner-sm {
     box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.08);
-  }
-  
-  /* Animación de spin más lenta para el estado inicial */
-  .animate-spin-slow {
+}
+
+/* Animación de spin más lenta para el estado inicial */
+.animate-spin-slow {
     animation: spin 1.5s linear infinite;
-  }
-  
-  @keyframes spin {
+}
+
+@keyframes spin {
     to {
-      transform: rotate(360deg);
+        transform: rotate(360deg);
     }
-  }
-  
-  /* Scrollbar discreto (solo navegadores que lo soportan) */
-  textarea::-webkit-scrollbar {
+}
+
+/* Scrollbar discreto (solo navegadores que lo soportan) */
+textarea::-webkit-scrollbar {
     width: 6px;
-  }
-  
-  textarea::-webkit-scrollbar-track {
+}
+
+textarea::-webkit-scrollbar-track {
     background: transparent;
-  }
-  
-  textarea::-webkit-scrollbar-thumb {
+}
+
+textarea::-webkit-scrollbar-thumb {
     background-color: rgba(148, 163, 184, 0.7);
     border-radius: 999px;
-  }
-  
-  /* Suavizado de fuentes */
-  body {
+}
+
+/* Suavizado de fuentes */
+body {
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
-  }
+}
 
 /* =====================================================
    DASHBOARD ANTIFRAUDE — Tema Claro / Sobrio
@@ -137,14 +137,18 @@
     scrollbar-color: #C4B5FD transparent;
 }
 
-.feed-scroll::-webkit-scrollbar { width: 4px; }
+.feed-scroll::-webkit-scrollbar {
+    width: 4px;
+}
 
 .feed-scroll::-webkit-scrollbar-thumb {
     background: #C4B5FD;
     border-radius: 999px;
 }
 
-.feed-scroll::-webkit-scrollbar-track { background: transparent; }
+.feed-scroll::-webkit-scrollbar-track {
+    background: transparent;
+}
 
 /* Feed item — blanco con borde morado claro, animado */
 .dash-page .feed-item {
@@ -153,12 +157,19 @@
     border: 1px solid #EDE9FE;
     border-radius: 10px;
     padding: 0.55rem 0.85rem;
-    box-shadow: 0 1px 3px rgba(124,58,237,0.05);
+    box-shadow: 0 1px 3px rgba(124, 58, 237, 0.05);
 }
 
 @keyframes feedIn {
-    from { opacity: 0; transform: translateX(10px); }
-    to   { opacity: 1; transform: translateX(0); }
+    from {
+        opacity: 0;
+        transform: translateX(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
 }
 
 /* Badge de alerta parpadeante */
@@ -167,8 +178,15 @@
 }
 
 @keyframes alertPulse {
-    0%, 100% { opacity: 1; }
-    50%       { opacity: 0.45; }
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.45;
+    }
 }
 
 /* Barra de progreso del heatmap: fondo gris claro */
@@ -176,3 +194,218 @@
     background: #EDE9FE;
 }
 
+body {
+    font-family: 'Inter', sans-serif;
+}
+
+.auth-card {
+    background: rgba(255, 255, 255, 0.97);
+    box-shadow: 0 25px 60px rgba(109, 40, 217, 0.12), 0 4px 16px rgba(0, 0, 0, 0.06);
+}
+
+.gradient-bg {
+    background: linear-gradient(135deg, #f5f3ff 0%, #ede9fe 35%, #faf5ff 70%, #fff7ed 100%);
+}
+
+.plux-logo {
+    background: linear-gradient(135deg, #7c3aed, #a855f7);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.input-field {
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.input-field:focus {
+    border-color: #7c3aed;
+    box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.12);
+    outline: none;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, #7c3aed, #9333ea);
+    transition: transform 0.15s, box-shadow 0.15s, opacity 0.15s;
+    box-shadow: 0 4px 14px rgba(124, 58, 237, 0.35);
+}
+
+.btn-primary:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 7px 20px rgba(124, 58, 237, 0.45);
+}
+
+.btn-primary:active:not(:disabled) {
+    transform: translateY(0px);
+}
+
+.btn-primary:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
+}
+
+.error-box {
+    animation: slideIn 0.25s ease-out;
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-6px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.spinner {
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-top-color: #fff;
+    border-radius: 50%;
+    width: 16px;
+    height: 16px;
+    animation: spin 0.7s linear infinite;
+    display: inline-block;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.ornament {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(60px);
+    pointer-events: none;
+}
+
+body {
+    font-family: 'Inter', sans-serif;
+}
+
+.auth-card {
+    background: rgba(255, 255, 255, 0.97);
+    box-shadow: 0 25px 60px rgba(109, 40, 217, 0.12), 0 4px 16px rgba(0, 0, 0, 0.06);
+}
+
+.gradient-bg {
+    background: linear-gradient(135deg, #f5f3ff 0%, #ede9fe 35%, #faf5ff 70%, #fff7ed 100%);
+}
+
+.plux-logo {
+    background: linear-gradient(135deg, #7c3aed, #a855f7);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.input-field {
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.input-field:focus {
+    border-color: #7c3aed;
+    box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.12);
+    outline: none;
+}
+
+.input-field.input-error {
+    border-color: #f87171;
+    box-shadow: 0 0 0 3px rgba(248, 113, 113, 0.12);
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, #7c3aed, #9333ea);
+    transition: transform 0.15s, box-shadow 0.15s, opacity 0.15s;
+    box-shadow: 0 4px 14px rgba(124, 58, 237, 0.35);
+}
+
+.btn-primary:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 7px 20px rgba(124, 58, 237, 0.45);
+}
+
+.btn-primary:active:not(:disabled) {
+    transform: translateY(0px);
+}
+
+.btn-primary:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
+}
+
+.error-box {
+    animation: slideIn 0.25s ease-out;
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-6px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.field-error {
+    color: #ef4444;
+    font-size: 11px;
+    margin-top: 4px;
+    display: none;
+}
+
+.field-error.visible {
+    display: block;
+}
+
+.spinner {
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-top-color: #fff;
+    border-radius: 50%;
+    width: 16px;
+    height: 16px;
+    animation: spin 0.7s linear infinite;
+    display: inline-block;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.ornament {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(60px);
+    pointer-events: none;
+}
+
+.step-indicator {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    margin-bottom: 28px;
+}
+
+.step-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #e5e7eb;
+    transition: background 0.3s, width 0.3s;
+}
+
+.step-dot.active {
+    background: #7c3aed;
+    width: 20px;
+    border-radius: 99px;
+}

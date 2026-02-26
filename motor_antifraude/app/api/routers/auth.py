@@ -101,18 +101,13 @@ async def login(
                 detail="Credenciales inválidas"
             )
 
-        # 2. Generamos el Token JWT (La "llave" de acceso)
-        # El 'sub' (subject) del token será el ID único del usuario
-        access_token = SecurityManager.create_access_token(
-            data={"sub": str(user.id)}
-        )
-
-        # 3. Retornamos el token al frontend/wallet
+        # El servicio ya generó el token JWT y construyó la respuesta completa.
+        # Retornamos directamente el UserLoginResponse del servicio.
         return {
-            "access_token": access_token,
-            "token_type": "bearer",
-            "message": "Bienvenido a Plux",
-            "user_id": str(user.id)
+            "access_token": user.access_token,
+            "token_type":   user.token_type,
+            "message":      "Bienvenido a Plux",
+            "user_id":      str(user.user_id),
         }
 
     except FraudMotorException as e:

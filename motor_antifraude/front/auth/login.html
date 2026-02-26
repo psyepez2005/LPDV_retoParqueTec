@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Plux | Iniciar Sesión</title>
+    <meta name="description" content="Accede a tu cuenta Plux — Motor Antifraude." />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+        rel="stylesheet" />
+    <link rel="stylesheet" href="../styles.css" />
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+
+        .page-bg {
+            min-height: 100vh;
+            background: linear-gradient(135deg, #1a0533 0%, #2d1060 40%, #1a0533 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1.5rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Burbujas decorativas de fondo */
+        .bubble {
+            position: absolute;
+            border-radius: 50%;
+            pointer-events: none;
+        }
+
+        .bubble-1 {
+            width: 500px;
+            height: 500px;
+            background: radial-gradient(circle, rgba(139, 92, 246, 0.25) 0%, transparent 70%);
+            top: -150px;
+            left: -150px;
+        }
+
+        .bubble-2 {
+            width: 400px;
+            height: 400px;
+            background: radial-gradient(circle, rgba(249, 115, 22, 0.15) 0%, transparent 70%);
+            bottom: -100px;
+            right: -100px;
+        }
+
+        .bubble-3 {
+            width: 300px;
+            height: 300px;
+            background: radial-gradient(circle, rgba(168, 85, 247, 0.2) 0%, transparent 70%);
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+        /* Grid de puntos sutil */
+        .page-bg::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background-image: radial-gradient(rgba(255, 255, 255, 0.06) 1px, transparent 1px);
+            background-size: 28px 28px;
+            pointer-events: none;
+        }
+
+        .login-wrapper {
+            display: flex;
+            width: 100%;
+            max-width: 900px;
+            min-height: 560px;
+            border-radius: 28px;
+            overflow: hidden;
+            box-shadow: 0 40px 80px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.08);
+            position: relative;
+            z-index: 10;
+        }
+
+        /* Panel izquierdo — branding */
+        .brand-panel {
+            flex: 1;
+            background: linear-gradient(145deg, #7c3aed 0%, #5b21b6 50%, #4c1d95 100%);
+            padding: 3rem;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .brand-panel::after {
+            content: '';
+            position: absolute;
+            width: 350px;
+            height: 350px;
+            background: radial-gradient(circle, rgba(255, 255, 255, 0.12) 0%, transparent 70%);
+            bottom: -100px;
+            right: -100px;
+            border-radius: 50%;
+        }
+
+        .brand-panel::before {
+            content: '';
+            position: absolute;
+            width: 200px;
+            height: 200px;
+            background: radial-gradient(circle, rgba(249, 115, 22, 0.25) 0%, transparent 70%);
+            top: -50px;
+            left: -50px;
+            border-radius: 50%;
+        }
+
+        /* Panel derecho — formulario */
+        .form-panel {
+            width: 420px;
+            flex-shrink: 0;
+            background: #ffffff;
+            padding: 3rem 2.5rem;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .input-plux {
+            width: 100%;
+            padding: 0.85rem 1rem;
+            border: 1.5px solid #e5e7eb;
+            border-radius: 12px;
+            background: #f9fafb;
+            font-size: 0.875rem;
+            color: #111827;
+            transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+            outline: none;
+        }
+
+        .input-plux:focus {
+            border-color: #7c3aed;
+            background: #fff;
+            box-shadow: 0 0 0 4px rgba(124, 58, 237, 0.1);
+        }
+
+        .input-plux::placeholder {
+            color: #9ca3af;
+        }
+
+        .btn-login {
+            width: 100%;
+            padding: 0.9rem;
+            border-radius: 12px;
+            background: linear-gradient(135deg, #7c3aed, #9333ea);
+            color: white;
+            font-weight: 700;
+            font-size: 0.9rem;
+            letter-spacing: 0.02em;
+            border: none;
+            cursor: pointer;
+            box-shadow: 0 6px 20px rgba(124, 58, 237, 0.4);
+            transition: transform 0.15s, box-shadow 0.15s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .btn-login:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 28px rgba(124, 58, 237, 0.5);
+        }
+
+        .btn-login:active:not(:disabled) {
+            transform: translateY(0);
+        }
+
+        .btn-login:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .btn-register-link {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            width: 100%;
+            padding: 0.8rem;
+            border-radius: 12px;
+            border: 1.5px solid #e5e7eb;
+            color: #7c3aed;
+            font-weight: 600;
+            font-size: 0.875rem;
+            text-decoration: none;
+            transition: background 0.15s, border-color 0.15s;
+        }
+
+        .btn-register-link:hover {
+            background: #f5f3ff;
+            border-color: #c4b5fd;
+        }
+
+        .label-field {
+            display: block;
+            font-size: 0.72rem;
+            font-weight: 700;
+            color: #6b7280;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            margin-bottom: 6px;
+        }
+
+        .alert-error {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+            color: #b91c1c;
+            border-radius: 12px;
+            padding: 12px 14px;
+            font-size: 13px;
+            animation: slideIn 0.25s ease-out;
+        }
+
+        .alert-success {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: #f0fdf4;
+            border: 1px solid #bbf7d0;
+            color: #166534;
+            border-radius: 12px;
+            padding: 12px 14px;
+            font-size: 13px;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-6px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .spinner {
+            border: 2px solid rgba(255, 255, 255, 0.35);
+            border-top-color: #fff;
+            border-radius: 50%;
+            width: 16px;
+            height: 16px;
+            animation: spin 0.7s linear infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* Feature chips */
+        .feature-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(255, 255, 255, 0.12);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 50px;
+            padding: 8px 14px;
+            font-size: 13px;
+            color: rgba(255, 255, 255, 0.9);
+        }
+
+        @media (max-width: 768px) {
+            .brand-panel {
+                display: none;
+            }
+
+            .form-panel {
+                width: 100%;
+                padding: 2rem 1.5rem;
+            }
+
+            .login-wrapper {
+                border-radius: 20px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="page-bg">
+        <!-- Burbujas de fondo -->
+        <div class="bubble bubble-1"></div>
+        <div class="bubble bubble-2"></div>
+        <div class="bubble bubble-3"></div>
+
+        <div class="login-wrapper">
+
+            <!-- ── PANEL IZQUIERDO — BRANDING ────────────────────────── -->
+            <div class="brand-panel">
+                <div style="position:relative;z-index:2;">
+                    <!-- Logo -->
+                    <div style="display:flex;align-items:center;gap:12px;margin-bottom:3rem;">
+                        <div
+                            style="width:44px;height:44px;border-radius:14px;background:rgba(255,255,255,0.2);border:1px solid rgba(255,255,255,0.3);display:flex;align-items:center;justify-content:center;">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="none" stroke="white"
+                                stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+                                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                            </svg>
+                        </div>
+                        <span style="font-size:1.3rem;font-weight:800;color:white;letter-spacing:-0.02em;">Plux</span>
+                    </div>
+
+                    <!-- Tagline -->
+                    <h2
+                        style="font-size:1.9rem;font-weight:800;color:white;line-height:1.2;margin-bottom:1rem;letter-spacing:-0.03em;">
+                        Motor Antifraude<br />
+                        <span style="color:#fbbf24;">Inteligencia en</span> tiempo real
+                    </h2>
+                    <p style="color:rgba(255,255,255,0.7);font-size:0.9rem;line-height:1.6;margin-bottom:2rem;">
+                        Protege cada transacción con análisis de riesgo avanzado, detección de anomalías y modelos de ML
+                        en producción.
+                    </p>
+
+                    <!-- Features -->
+                    <div style="display:flex;flex-direction:column;gap:10px;">
+                        <div class="feature-chip">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none"
+                                stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+                            </svg>
+                            Score de riesgo en &lt; 200ms
+                        </div>
+                        <div class="feature-chip">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none"
+                                stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                            </svg>
+                            Datos cifrados en reposo
+                        </div>
+                        <div class="feature-chip">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none"
+                                stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <circle cx="12" cy="12" r="10" />
+                                <polyline points="12 6 12 12 16 14" />
+                            </svg>
+                            Monitoreo 24 / 7
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Footer branding -->
+                <p style="color:rgba(255,255,255,0.4);font-size:11px;position:relative;z-index:2;">
+                    © 2026 LPDV Team · Plux v1
+                </p>
+            </div>
+
+            <!-- ── PANEL DERECHO — FORMULARIO ────────────────────────── -->
+            <div class="form-panel">
+
+                <!-- Cabecera móvil / sin panel izq -->
+                <div style="margin-bottom:2rem;">
+                    <h1
+                        style="font-size:1.6rem;font-weight:800;color:#111827;letter-spacing:-0.03em;margin-bottom:4px;">
+                        Bienvenido de vuelta
+                    </h1>
+                    <p style="font-size:0.875rem;color:#6b7280;">
+                        Ingresa tus credenciales para continuar.
+                    </p>
+                </div>
+
+                <!-- Mensaje éxito desde registro -->
+                <div id="success-msg" class="alert-success" style="display:none;margin-bottom:1rem;">
+                    <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                    <span>¡Cuenta creada! Ahora inicia sesión.</span>
+                </div>
+
+                <!-- Mensaje de error -->
+                <div id="error-msg" class="alert-error" style="display:none;margin-bottom:1rem;">
+                    <svg style="flex-shrink:0;margin-top:1px;" width="16" height="16" fill="none" stroke="currentColor"
+                        stroke-width="2" viewBox="0 0 24 24">
+                        <circle cx="12" cy="12" r="10" />
+                        <line x1="12" y1="8" x2="12" y2="12" />
+                        <line x1="12" y1="16" x2="12.01" y2="16" />
+                    </svg>
+                    <span id="error-text">Error de autenticación.</span>
+                </div>
+
+                <!-- Formulario -->
+                <form id="login-form" novalidate style="display:flex;flex-direction:column;gap:1.1rem;">
+
+                    <div>
+                        <label for="email" class="label-field">Correo electrónico</label>
+                        <input type="email" id="email" name="email" placeholder="tu@correo.com" autocomplete="email"
+                            class="input-plux" required />
+                    </div>
+
+                    <div>
+                        <label for="password" class="label-field">Contraseña</label>
+                        <div style="position:relative;">
+                            <input type="password" id="password" name="password" placeholder="••••••••"
+                                autocomplete="current-password" class="input-plux" style="padding-right:2.8rem;"
+                                required />
+                            <button type="button" id="toggle-pass"
+                                style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#9ca3af;padding:4px;"
+                                aria-label="Mostrar contraseña">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none"
+                                    stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                    stroke-linejoin="round" viewBox="0 0 24 24">
+                                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                                    <circle cx="12" cy="12" r="3" />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+
+                    <button type="submit" id="submit-btn" class="btn-login" style="margin-top:0.4rem;">
+                        <span id="btn-text">Iniciar Sesión</span>
+                        <span id="btn-spinner" class="spinner" style="display:none;"></span>
+                    </button>
+
+                </form>
+
+                <!-- Divider -->
+                <div style="display:flex;align-items:center;gap:12px;margin:1.5rem 0;">
+                    <div style="flex:1;height:1px;background:#f3f4f6;"></div>
+                    <span style="font-size:12px;color:#d1d5db;">¿No tienes cuenta?</span>
+                    <div style="flex:1;height:1px;background:#f3f4f6;"></div>
+                </div>
+
+                <!-- Link a registro -->
+                <a href="register.html" class="btn-register-link">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" stroke="currentColor"
+                        stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+                        <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                        <circle cx="8.5" cy="7" r="4" />
+                        <line x1="20" y1="8" x2="20" y2="14" />
+                        <line x1="23" y1="11" x2="17" y2="11" />
+                    </svg>
+                    Crear cuenta nueva
+                </a>
+
+            </div>
+        </div>
+    </div>
+
+    <script src="login.js?v=2"></script>
+</body>
+
+</html>
