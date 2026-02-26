@@ -130,26 +130,39 @@ class AuditRepository:
                 "timestamp":        payload.timestamp.isoformat(),
                 "user_agent":       payload.user_agent,
                 "sdk_version":      payload.sdk_version,
+                "merchant_id":      str(payload.merchant_id) if getattr(payload, 'merchant_id', None) else None,
+                "merchant_name":    getattr(payload, 'merchant_name', None),
+                "ip_country":       getattr(payload, 'ip_country', None),
             }
             encrypted_payload = _encrypt(
                 json.dumps(payload_dict, ensure_ascii=False).encode()
             )
 
+            # ── Extraer ip_country y gps_country del request state si disponibles ───
+            # GeoEnrichmentMiddleware los enriquece en request.state
+            _ip_country  = getattr(payload, 'ip_country', None)
+            _gps_country = None  # Inferido del GPS si el GeoAnalyzer lo devuelve
+
             # ── Construir el registro de auditoría ────────────────────
             audit = TransactionAudit(
-                id                = uuid.uuid4(),
-                user_id           = payload.user_id,
+                id                  = uuid.uuid4(),
+                user_id             = payload.user_id,
                 encrypted_device_id = encrypted_device_id,
                 encrypted_card_bin  = encrypted_card_bin,
-                action            = action.value,
-                risk_score        = final_score,
-                reason_codes      = response.reason_codes,
-                transaction_type  = payload.transaction_type.value,
-                amount            = payload.amount,
-                currency          = payload.currency,
-                encrypted_payload = encrypted_payload,
-                response_signature = response.signature,
-                response_time_ms  = response.response_time_ms,
+                action              = action.value,
+                risk_score          = final_score,
+                reason_codes        = response.reason_codes,
+                transaction_type    = payload.transaction_type.value,
+                amount              = payload.amount,
+                currency            = payload.currency,
+                encrypted_payload   = encrypted_payload,
+                response_signature  = response.signature,
+                response_time_ms    = response.response_time_ms,
+                # Campos para el dashboard
+                merchant_id         = getattr(payload, 'merchant_id', None),
+                merchant_name       = getattr(payload, 'merchant_name', None),
+                ip_country          = _ip_country,
+                gps_country         = _gps_country,
             )
 
             # ── Persistir ─────────────────────────────────────────────

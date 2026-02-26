@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 from sqlalchemy import (
     Boolean,
     DateTime,
+    ForeignKey,
     Index,
     Integer,
     Numeric,
@@ -12,7 +13,7 @@ from sqlalchemy import (
     text,
 )
 from sqlalchemy.dialects.postgresql import BYTEA, JSONB, UUID
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
 class Base(DeclarativeBase):
@@ -73,6 +74,33 @@ class User(Base):
     )
 
 
+class Merchant(Base):
+    """
+    Catálogo de comercios que usan el motor antifraude.
+    Se usa en el Mapa de Calor y en el Feed Transaccional del dashboard.
+    """
+    __tablename__ = "merchants"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    name: Mapped[str] = mapped_column(String(200), nullable=False, index=True)
+    ruc:  Mapped[str] = mapped_column(String(20),  nullable=True,  unique=True)
+    category: Mapped[str] = mapped_column(
+        String(50), nullable=False, server_default="UNKNOWN"
+    )
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+    )
+
+    __table_args__ = (
+        Index("idx_merchants_name", "name"),
+        Index("idx_merchants_ruc",  "ruc"),
+    )
+
+
 class TransactionAudit(Base):
     __tablename__ = "transaction_audit"
 
@@ -103,6 +131,17 @@ class TransactionAudit(Base):
 
     response_time_ms: Mapped[int] = mapped_column(Integer, nullable=False)
 
+    # ── Campos para el dashboard ────────────────────────────────
+    merchant_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("merchants.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    merchant_name: Mapped[str] = mapped_column(String(200), nullable=True)
+    ip_country:    Mapped[str] = mapped_column(String(3),   nullable=True)  # ISO 3166-1
+    gps_country:   Mapped[str] = mapped_column(String(3),   nullable=True)  # inferido
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
@@ -110,8 +149,10 @@ class TransactionAudit(Base):
 
     __table_args__ = (
         Index("idx_audit_user_created", "user_id", "created_at"),
-        Index("idx_audit_action", "action"),
-        Index("idx_audit_risk_score", "risk_score"),
+        Index("idx_audit_action",       "action"),
+        Index("idx_audit_risk_score",   "risk_score"),
+        Index("idx_audit_merchant_id",  "merchant_id"),
+        Index("idx_audit_created_at",   "created_at"),
     )
 
 class DeviceHistory(Base):

@@ -113,6 +113,11 @@ class TransactionPayload(BaseModel):
     is_international_card: bool                     = False
     merchant_category:    MerchantCategory          = MerchantCategory.UNKNOWN
 
+    # ── Contexto del comercio (opcional) ──────────────────────────────
+    merchant_id:       Optional[UUID4] = None   # UUID del comercio en tabla merchants
+    merchant_name:     Optional[str]   = Field(None, max_length=200)
+    ip_country:        Optional[str]   = Field(None, min_length=2, max_length=3)  # ISO 3166
+
     model_config = ConfigDict(extra="ignore")
 
 
@@ -288,3 +293,87 @@ class CheckoutDecisionResponse(BaseModel):
     transaction_id:  Optional[UUID4] = None
     challenge_type:  Optional[ChallengeType] = None
     requires_liveness: bool = False   # True cuando score 21-70 → prueba de vida
+
+
+# ─────────────────────────────────────────────────────────────────────
+# DASHBOARD SCHEMAS
+# ─────────────────────────────────────────────────────────────────────
+
+class DashboardKPIs(BaseModel):
+    total_volume:             float  # Suma de amount en el período
+    total_tx:                 int    # Total de evaluaciones
+    rejected_tx:              int    # Bloqueadas (ACTION_BLOCK_*)
+    challenged_tx:            int    # Con challenge
+    approved_tx:              int    # Aprobadas
+    rejection_rate_pct:       float  # rejected_tx / total_tx * 100
+    critical_alerts_last_hour: int   # Bloqueadas en la última hora
+
+
+class GeoDiscrepancy(BaseModel):
+    ip_address:      str
+    ip_country:      Optional[str]
+    gps_country:     Optional[str]
+    action:          str
+    risk_score:      int
+    timestamp:       datetime
+    is_mismatch:     bool
+
+
+class TransactionFeedItem(BaseModel):
+    transaction_id:  str
+    timestamp:       datetime
+    card_bin:        str            # Primeros 6 dígitos (en claro — no sensible por sí solo)
+    amount:          float
+    currency:        str
+    action:          str
+    risk_score:      int
+    merchant_name:   Optional[str]
+    transaction_type: str
+
+
+class MerchantHeatmapItem(BaseModel):
+    merchant_name:   str
+    merchant_id:     Optional[str]
+    fraud_count:     int            # Transacciones bloqueadas
+    total_count:     int
+    fraud_rate_pct:  float
+
+
+class IdentityRiskItem(BaseModel):
+    user_id:         str
+    distinct_bins:   int            # Cuántos BINs distintos usó
+    tx_count:        int
+    max_risk_score:  int
+    risk_level:      str            # HIGH / MEDIUM / LOW
+
+
+class DashboardSummary(BaseModel):
+    """
+    Respuesta completa del endpoint GET /v1/dashboard/summary.
+    Contiene todos los datos necesarios para renderizar el dashboard.
+    """
+    generated_at:       datetime
+    period_hours:       int                        # Ventana de tiempo consultada (default 24h)
+    kpis:               DashboardKPIs
+    geo_discrepancies:  List[GeoDiscrepancy]
+    transaction_feed:   List[TransactionFeedItem]  # Últimas N transacciones
+    merchant_heatmap:   List[MerchantHeatmapItem]  # Ranking de comercios por fraude
+    identity_risks:     List[IdentityRiskItem]      # Usuarios con múltiples BINs
+
+
+# Schema para crear/registrar un merchant
+class MerchantCreate(BaseModel):
+    name:     str = Field(..., min_length=1, max_length=200)
+    ruc:      Optional[str] = Field(None, max_length=20)
+    category: str = Field("UNKNOWN", max_length=50)
+
+
+class MerchantResponse(BaseModel):
+    id:         str
+    name:       str
+    ruc:        Optional[str]
+    category:   str
+    is_active:  bool
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
