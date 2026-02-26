@@ -1,7 +1,11 @@
 """
-auth_service.py
----------------
-Servicio de autenticación — registro, login y JWT.
+SERVICIO DE AUTENTICACIÓN (AuthService)
+---------------------------------------
+Este módulo centraliza la seguridad de la aplicación:
+1. Registro: Valida duplicados, hashea contraseñas y procesa biometría facial.
+2. Login: Verifica credenciales y genera tokens JWT de acceso.
+3. Validación: Verifica la autenticidad y expiración de los tokens en cada petición.
+4. Privacidad: Anonimiza datos sensibles (Cédula) mediante hashing.
 """
 
 import hashlib
@@ -39,10 +43,6 @@ JWT_EXPIRE_HOURS = 24
 
 
 class AuthService:
-
-    # ------------------------------------------------------------------ #
-    #  Registro                                                          #
-    # ------------------------------------------------------------------ #
 
     async def register(
         self,
@@ -104,10 +104,7 @@ class AuthService:
             message  = "Cuenta creada exitosamente.",
         )
 
-    # ------------------------------------------------------------------ #
-    #  Login                                                             #
-    # ------------------------------------------------------------------ #
-
+    
     async def login(
         self,
         db: AsyncSession,
@@ -150,10 +147,7 @@ class AuthService:
             username     = user.username,
         )
 
-    # ------------------------------------------------------------------ #
-    #  Validación de JWT                                                 #
-    # ------------------------------------------------------------------ #
-
+   
     def verify_token(self, token: str) -> CurrentUser:
         try:
             payload = jwt.decode(
@@ -172,10 +166,7 @@ class AuthService:
         except jwt.InvalidTokenError:
             raise InvalidTokenException()
 
-    # ------------------------------------------------------------------ #
-    #  Utilidades privadas                                               #
-    # ------------------------------------------------------------------ #
-
+ 
     def _generate_jwt(self, user: User) -> tuple[str, int]:
         expires_in = JWT_EXPIRE_HOURS * 3600
         expire     = datetime.now(timezone.utc) + timedelta(hours=JWT_EXPIRE_HOURS)
@@ -219,5 +210,5 @@ class AuthService:
             raise CedulaAlreadyExistsException()
 
 
-# Singleton
+
 auth_service = AuthService()

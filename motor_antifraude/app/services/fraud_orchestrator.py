@@ -72,21 +72,7 @@ _HMAC_SECRET: bytes = os.environ.get(
 
 
 class FraudOrchestrator:
-    """
-    Orquestador principal del motor antifraude.
-
-    Pesos del modelo de scoring (deben sumar exactamente 1.0):
-      W1 Velocity  = 0.25  — velocidad y límites de recarga
-      W2 Device    = 0.20  — fingerprint, emuladores, multi-cuenta
-      W3 Geo       = 0.20  — geolocalización, viaje imposible
-      W4 Behavior  = 0.20  — patrón conductual, account takeover
-      W5 External  = 0.15  — score de Sift/Kount
-
-    Los pesos son atributos de clase para poder modificarlos en caliente
-    desde el panel de administración sin redespliegue:
-      FraudOrchestrator.W1_VELOCITY = 0.30
-    """
-
+    
     W1_VELOCITY = 0.25
     W2_DEVICE   = 0.20
     W3_GEO      = 0.20
