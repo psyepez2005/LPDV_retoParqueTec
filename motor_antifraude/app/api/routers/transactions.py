@@ -6,7 +6,7 @@ from app.api.dependencies import get_db_session
 from app.domain.schemas import TransactionPayload, FraudEvaluationResponse
 from app.services.fraud_orchestrator import fraud_orchestrator
 
-from app.api.deps import get_current_user, validate_hmac_integrity 
+from app.api.deps import get_current_user 
 router = APIRouter(prefix="/v1/transactions", tags=["Transactions"])
 
 @router.post("/evaluate", response_model=FraudEvaluationResponse)
@@ -17,7 +17,7 @@ async def evaluate_transaction(
 
     current_user_id: str = Depends(get_current_user),
 
-    _verified_payload: dict = Depends(validate_hmac_integrity)
+    # _verified_payload: dict = Depends(validate_hmac   _integrity)
 ) -> FraudEvaluationResponse:
 
     payload.ip_address = getattr(request.state, "ip_address", payload.ip_address)
