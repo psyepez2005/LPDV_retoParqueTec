@@ -21,7 +21,6 @@ from redis.asyncio import Redis
 logger = logging.getLogger(__name__)
 
 
-<<<<<<< HEAD
 # ------------------------------------------------------------------ #
 #  Penalizaciones por anomalía de comportamiento                     #
 # ------------------------------------------------------------------ #
@@ -34,7 +33,6 @@ PENALTY_AMOUNT_3X_AVERAGE   = 20   # Monto > 3x su promedio histórico
 PENALTY_CURRENCY_CHANGE     = 12   # Cambio de moneda habitual
 PENALTY_FIRST_WEEK_USER     = 10   # Cuenta con < 7 días de antigüedad
 PENALTY_NEW_RECIPIENT       = 10   # Primer pago a este destinatario (P2P)
-=======
 PENALTY_PROFILE_CHANGE_24H  = 25   
 PENALTY_FAST_LOGIN_TX       = 15   
                                    
@@ -44,7 +42,6 @@ PENALTY_AMOUNT_3X_AVERAGE   = 20
 PENALTY_CURRENCY_CHANGE     = 12  
 PENALTY_FIRST_WEEK_USER     = 10  
 PENALTY_NEW_RECIPIENT       = 10  
->>>>>>> 0afe9f6b34c2e46d98df9e0bceeffa3b02922edf
 
 REDUCTION_FREQUENT_RECIPIENT = -12  
 REDUCTION_PAYDAY_WINDOW      = -10  
@@ -134,15 +131,12 @@ class BehaviorEngine:
             result.score = max(0.0, min(100.0, result.score))
             return result
 
-<<<<<<< HEAD
-=======
         
         current_hour = now.hour
         if profile.typical_hours and current_hour not in profile.typical_hours:
             result.is_unusual_hour = True
             result.score += PENALTY_UNUSUAL_HOUR
             result.reason_codes.append(f"UNUSUAL_HOUR_{current_hour}H")
->>>>>>> 0afe9f6b34c2e46d98df9e0bceeffa3b02922edf
 
         if profile.avg_transaction_amount > 0:
             ratio = amount / profile.avg_transaction_amount
