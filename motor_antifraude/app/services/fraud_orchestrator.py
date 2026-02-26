@@ -142,6 +142,11 @@ _EXACT_CATALOG: dict[str, tuple[int, str, str]] = {
     # ── Orquestador — overrides ────────────────────────────────────
     "OVERRIDE_IMPOSSIBLE_TRAVEL":      (100, "Override",        "Override: viaje imposible confirmado — score forzado a máximo."),
     "OVERRIDE_MULE_PATTERN_CONFIRMED": (100, "Override",        "Override: patrón de cuenta mula confirmado — score forzado a máximo."),
+
+    # ── Contribuciones base de módulos ponderados (breakdown honesto) ──────
+    "__VELOCITY_BASE__":               (0,   "Velocidad",       "Puntuación base del módulo de velocidad transaccional."),
+    "__DEVICE_BASE__":                 (0,   "Dispositivo",     "Puntuación base del módulo de dispositivo (sin anomalías detectadas)."),
+    "__EXTERNAL_BASE__":               (0,   "Externo",         "Puntuación base del módulo de riesgo externo (BIN/IP score)."),
 }
 
 _PREFIX_CATALOG: dict[str, tuple[int, str, str]] = {
@@ -479,6 +484,21 @@ class FraudOrchestrator:
             max(0.0, min(100.0, weighted_score + p2p_penalty + trust_reduction))
         )
 
+        # ── Contribuciones base de módulos ponderados sin reason_code propio ────────
+        # Se rastrean y muestran en el breakdown para cerrar la brecha con el risk_score
+        _vel_contrib  = round(self.W1_VELOCITY * velocity_score)
+        _dev_contrib  = round(self.W2_DEVICE   * device_score)
+        _ext_contrib  = round(self.W5_EXTERNAL * ext_score)
+        if _vel_contrib:
+            contributions["__VELOCITY_BASE__"] = _vel_contrib
+            reason_codes.append("__VELOCITY_BASE__")
+        if _dev_contrib:
+            contributions["__DEVICE_BASE__"] = _dev_contrib
+            reason_codes.append("__DEVICE_BASE__")
+        if _ext_contrib:
+            contributions["__EXTERNAL_BASE__"] = _ext_contrib
+            reason_codes.append("__EXTERNAL_BASE__")
+
         from app.domain.schemas import KycLevel
         history_penalty = 0
 
@@ -590,17 +610,22 @@ class FraudOrchestrator:
             weighted_score += time_result.penalty * self.W4_BEHAVIOR
             final_score = int(max(0, min(100, weighted_score + p2p_penalty + trust_reduction)))
 
-        # ── Códigos de dispositivo/velocidad — delta real antes/después ─────
+        # ── Códigos de dispositivo/velocidad ─────────────────────────────────
+        # Si superan el umbral: reemplazar entry genérico por el código real
         if device_score >= 80:
             reason_codes.append("EMULATOR_OR_ROOT_DETECTED")
+            contributions.pop("__DEVICE_BASE__", None)
             contributions["EMULATOR_OR_ROOT_DETECTED"] = round(self.W2_DEVICE * device_score)
         elif device_score >= 60:
             reason_codes.append("SUSPICIOUS_DEVICE_FINGERPRINT")
+            contributions.pop("__DEVICE_BASE__", None)
             contributions["SUSPICIOUS_DEVICE_FINGERPRINT"] = round(self.W2_DEVICE * device_score)
 
         if velocity_score >= 40:
             reason_codes.append("HIGH_VELOCITY_OR_LIMIT_EXCEEDED")
+            contributions.pop("__VELOCITY_BASE__", None)
             contributions["HIGH_VELOCITY_OR_LIMIT_EXCEEDED"] = round(self.W1_VELOCITY * velocity_score)
+
 
         # ── Módulos ponderados: geo y behavior ───────────────────────────────
         if geo_result:
