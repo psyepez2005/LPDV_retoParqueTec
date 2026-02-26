@@ -146,6 +146,7 @@ def setup_cors(app: FastAPI, allowed_origins: list[str]) -> None:
             "Authorization",
             "X-Request-ID",
             "X-Device-ID",
+            "X-Signature",
         ],
         max_age           = 600,
     )

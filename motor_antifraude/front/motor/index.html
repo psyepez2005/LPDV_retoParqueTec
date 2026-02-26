@@ -208,7 +208,7 @@
     /* ── Textarea ────────────────────────── */
     .payload-textarea {
       width: 100%;
-      min-height: 260px;
+      min-height: 280px;
       resize: vertical;
       border: 1.5px solid #e5e7eb;
       border-radius: 12px;
@@ -247,36 +247,21 @@
       gap: 8px;
     }
 
-    .btn-analyze:hover {
+    .btn-analyze:hover:not(:disabled) {
       transform: translateY(-2px);
       box-shadow: 0 10px 28px rgba(249, 115, 22, 0.48);
     }
 
-    .btn-analyze:active {
+    .btn-analyze:active:not(:disabled) {
       transform: translateY(0);
     }
 
-    /* ── Selector de escenario ──────────── */
-    .scenario-select {
-      width: 100%;
-      padding: 10px 14px;
-      border: 1.5px solid #e5e7eb;
-      border-radius: 10px;
-      background: white;
-      font-size: 13px;
-      color: #374151;
-      font-weight: 500;
-      cursor: pointer;
-      outline: none;
-      transition: border-color 0.2s;
+    .btn-analyze:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
     }
 
-    .scenario-select:focus {
-      border-color: #7c3aed;
-      box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.1);
-    }
-
-    /* ── Panel resultado ─────────────────── */
+    /* ── Estado inicial ──────────────────── */
     .state-initial {
       display: flex;
       flex-direction: column;
@@ -289,9 +274,9 @@
       background: #faf5ff;
     }
 
-    .initial-icon {
-      width: 56px;
-      height: 56px;
+    .initial-ring {
+      width: 52px;
+      height: 52px;
       border-radius: 16px;
       background: #ede9fe;
       border: 1px solid #ddd6fe;
@@ -301,6 +286,22 @@
       margin-bottom: 1rem;
     }
 
+    .spin-ring {
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      border: 2.5px solid #8b5cf6;
+      border-top-color: transparent;
+      animation: spin 1.2s linear infinite;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    /* ── Estado cargando ─────────────────── */
     .state-loading {
       display: flex;
       flex-direction: column;
@@ -326,14 +327,7 @@
       }
     }
 
-    /* Score display */
-    .score-display {
-      display: flex;
-      align-items: baseline;
-      gap: 16px;
-      margin-bottom: 1.5rem;
-    }
-
+    /* ── Score ────────────────────────────── */
     .score-number {
       font-size: 5rem;
       font-weight: 800;
@@ -342,24 +336,13 @@
       transition: color 0.4s;
     }
 
-    .verdict-chip {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 6px 14px;
-      border-radius: 999px;
-      font-size: 13px;
-      font-weight: 700;
-      letter-spacing: 0.01em;
-    }
-
-    /* Score bar */
+    /* ── Barra de riesgo ─────────────────── */
     .risk-bar-track {
       height: 12px;
       border-radius: 999px;
       background: linear-gradient(to right, #d1fae5, #fef3c7, #fee2e2);
       position: relative;
-      overflow: hidden;
+      overflow: visible;
       box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.08);
     }
 
@@ -367,31 +350,10 @@
       height: 100%;
       width: 0;
       border-radius: 999px;
-      transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+      transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1), background 0.4s;
       position: relative;
     }
 
-    .risk-bar-fill::after {
-      content: '';
-      position: absolute;
-      right: 0;
-      top: 50%;
-      transform: translateY(-50%);
-      width: 14px;
-      height: 14px;
-      border-radius: 50%;
-      background: inherit;
-      box-shadow: 0 0 0 3px white, 0 0 0 5px currentColor;
-    }
-
-    /* Verdict alert */
-    .verdict-alert {
-      border-radius: 14px;
-      padding: 1rem 1.25rem;
-      border-left: 4px solid;
-    }
-
-    /* Score markers */
     .score-markers {
       display: flex;
       justify-content: space-between;
@@ -400,31 +362,42 @@
       margin-top: 6px;
     }
 
-    /* Tag de escenario */
-    .scenario-tag {
-      font-size: 10px;
+    /* ── Veredicto ────────────────────────── */
+    .verdict-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 14px;
+      border-radius: 999px;
+      font-size: 13px;
       font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      padding: 3px 8px;
-      border-radius: 6px;
     }
 
-    /* Spinner del botón */
-    .btn-spinner-orange {
+    .verdict-alert {
+      border-radius: 14px;
+      padding: 1rem 1.25rem;
+      border-left: 4px solid;
+    }
+
+    /* ── Spinner del botón ───────────────── */
+    .btn-spinner-el {
       border: 2px solid rgba(255, 255, 255, 0.35);
       border-top-color: #fff;
       border-radius: 50%;
       width: 18px;
       height: 18px;
       animation: spin 0.7s linear infinite;
-      display: none;
     }
 
-    @keyframes spin {
-      to {
-        transform: rotate(360deg);
-      }
+    /* ── Tag JSON ─────────────────────────── */
+    .json-badge {
+      font-size: 11px;
+      background: #f5f3ff;
+      color: #7c3aed;
+      border: 1px solid #ede9fe;
+      padding: 3px 10px;
+      border-radius: 999px;
+      font-weight: 600;
     }
   </style>
 </head>
@@ -449,7 +422,7 @@
         </div>
       </div>
 
-      <!-- Centro -->
+      <!-- Centro: estado -->
       <div class="live-badge">
         <div class="live-dot"></div>
         Motor activo
@@ -486,7 +459,7 @@
     <!-- ── COLUMNA IZQUIERDA: Input ──────────────────────── -->
     <div style="display:flex;flex-direction:column;gap:1.25rem;">
 
-      <!-- Card de entrada -->
+      <!-- Card de payload -->
       <div class="motor-card">
         <div class="card-header">
           <div class="card-title">
@@ -498,42 +471,33 @@
             </div>
             Payload de Transacción
           </div>
-          <span
-            style="font-size:11px;background:#f5f3ff;color:#7c3aed;border:1px solid #ede9fe;padding:3px 10px;border-radius:999px;font-weight:600;">JSON
-            · v1</span>
+          <span class="json-badge">JSON · v1</span>
         </div>
         <div class="card-body" style="display:flex;flex-direction:column;gap:1rem;">
           <div>
-            <label for="payloadInput"
-              style="display:flex;align-items:center;justify-content:space-between;font-size:12px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px;">
+            <label for="payloadInput" style="display:flex;align-items:center;justify-content:space-between;
+                                      font-size:12px;font-weight:600;color:#6b7280;
+                                      text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px;">
               <span>Datos de la operación</span>
-              <span style="font-weight:400;text-transform:none;letter-spacing:0;">Campos: monto, IP, dispositivo…</span>
+              <span style="font-weight:400;text-transform:none;letter-spacing:0;color:#9ca3af;">
+                Editable · se envía al backend
+              </span>
             </label>
-            <textarea id="payloadInput" class="payload-textarea" spellcheck="false" placeholder='{
-  "user_id": "USR-992834",
-  "device_id": "ABC-123-XYZ",
-  "card_bin": "411111",
-  "amount": 250.00,
-  "currency": "USD",
-  "ip_address": "192.168.0.1",
-  "latitude": 9.9281,
-  "longitude": -84.0907,
-  "transaction_type": "PAYMENT",
-  "session_id": "SESS-7721-B",
-  "timestamp": "2026-02-26T12:00:00Z",
-  "user_agent": "Mozilla/5.0",
-  "sdk_version": "2.4.1"
-}'></textarea>
+            <textarea id="payloadInput" class="payload-textarea" spellcheck="false"></textarea>
           </div>
           <p style="font-size:11px;color:#9ca3af;line-height:1.5;">
-            En modo demo el análisis es simulado. La integración real envía el payload al backend FastAPI.
+            El payload se envía al endpoint
+            <code style="background:#f3f4f6;padding:1px 5px;border-radius:4px;font-size:11px;color:#7c3aed;">
+                            POST /v1/transactions/evaluate
+                        </code>
+            con autenticación JWT real.
           </p>
         </div>
       </div>
 
-      <!-- Card de control -->
+      <!-- Card de acción -->
       <div class="motor-card">
-        <div class="card-body" style="display:flex;flex-direction:column;gap:1rem;">
+        <div class="card-body">
           <button id="analyzeButton" type="button" class="btn-analyze">
             <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" fill="none" stroke="currentColor"
               stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
@@ -541,21 +505,26 @@
               <line x1="21" y1="21" x2="16.65" y2="16.65" />
             </svg>
             <span id="analyze-text">Ejecutar Análisis de Riesgo</span>
-            <div id="analyze-spinner" class="btn-spinner-orange"></div>
+            <div id="analyze-spinner" class="btn-spinner-el" style="display:none;"></div>
           </button>
 
-          <div>
-            <label for="scenarioSelect"
-              style="display:block;font-size:12px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:7px;">
-              Forzar escenario de prueba
-            </label>
-            <select id="scenarioSelect" class="scenario-select">
-              <option value="random">🎲 Aleatorio</option>
-              <option value="approved">✅ Aprobado (score 0–20)</option>
-              <option value="suspicious">⚠️ Sospechoso (score 21–69)</option>
-              <option value="fraud">🚨 Fraude detectado (score 70–100)</option>
-            </select>
-            <p style="font-size:11px;color:#9ca3af;margin-top:6px;">Solo afecta la simulación frontend.</p>
+          <!-- Info de la integración -->
+          <div style="margin-top:1rem;padding:12px 14px;background:#f5f3ff;
+                                border:1px solid #ede9fe;border-radius:12px;
+                                display:flex;gap:10px;align-items:flex-start;">
+            <svg style="flex-shrink:0;margin-top:1px;" xmlns="http://www.w3.org/2000/svg" width="14" height="14"
+              fill="none" stroke="#7c3aed" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+              viewBox="0 0 24 24">
+              <circle cx="12" cy="12" r="10" />
+              <line x1="12" y1="16" x2="12" y2="12" />
+              <line x1="12" y1="8" x2="12.01" y2="8" />
+            </svg>
+            <div style="font-size:11px;color:#5b21b6;line-height:1.55;">
+              <strong>Integración real:</strong> el motor evalúa 40+ señales de riesgo
+              (geolocalización, BIN, dispositivo, velocidad de sesión, KYC…)
+              y devuelve un <code
+                style="background:rgba(124,58,237,0.1);padding:1px 4px;border-radius:4px;">risk_score</code> de 0 a 100.
+            </div>
           </div>
         </div>
       </div>
@@ -573,58 +542,62 @@
           </div>
           Resultado del Motor
         </div>
-        <div id="mode-badge"
-          style="font-size:11px;background:#f5f3ff;color:#7c3aed;border:1px solid #ede9fe;padding:3px 10px;border-radius:999px;font-weight:600;">
+        <div id="mode-badge" style="font-size:11px;background:#f5f3ff;color:#7c3aed;
+                            border:1px solid #ede9fe;padding:3px 10px;
+                            border-radius:999px;font-weight:600;">
           En espera
         </div>
       </div>
 
       <div class="card-body">
 
-        <!-- Estado inicial -->
-        <div id="stateInitial" class="state-initial">
-          <div class="initial-icon">
-            <div
-              style="width:26px;height:26px;border-radius:8px;border:2.5px solid #8b5cf6;border-top-color:transparent;"
-              class="animate-spin-slow"></div>
+        <!-- ── Estado inicial ── -->
+        <div id="stateInitial" class="state-initial" style="display:flex;">
+          <div class="initial-ring">
+            <div class="spin-ring"></div>
           </div>
-          <p style="font-size:14px;font-weight:600;color:#374151;margin-bottom:6px;">Esperando análisis…</p>
-          <p style="font-size:12px;color:#9ca3af;max-width:260px;line-height:1.5;">Pega el payload JSON y presiona
-            <strong>Ejecutar Análisis</strong> para ver el score de riesgo.</p>
+          <p style="font-size:14px;font-weight:600;color:#374151;margin-bottom:6px;">
+            Esperando análisis…
+          </p>
+          <p style="font-size:12px;color:#9ca3af;max-width:260px;line-height:1.5;">
+            Configura el payload JSON y presiona
+            <strong>Ejecutar Análisis</strong> para obtener el score de riesgo real.
+          </p>
         </div>
 
-        <!-- Estado cargando -->
+        <!-- ── Estado cargando ── -->
         <div id="stateLoading" class="state-loading" style="display:none;">
           <div style="display:flex;align-items:center;gap:12px;margin-bottom:0.5rem;">
-            <div
-              style="width:36px;height:36px;border-radius:50%;border:2.5px solid #ede9fe;border-top-color:#7c3aed;flex-shrink:0;"
-              class="animate-spin"></div>
+            <div style="width:36px;height:36px;border-radius:50%;
+                                    border:2.5px solid #ede9fe;border-top-color:#7c3aed;
+                                    flex-shrink:0;animation:spin 0.9s linear infinite;"></div>
             <div>
-              <p style="font-size:13px;font-weight:600;color:#374151;">Ejecutando motor antifraude…</p>
-              <p style="font-size:11px;color:#9ca3af;">Evaluando 40+ señales de riesgo</p>
+              <p style="font-size:13px;font-weight:600;color:#374151;">
+                Ejecutando motor antifraude…
+              </p>
+              <p style="font-size:11px;color:#9ca3af;">
+                Evaluando señales de riesgo con FastAPI
+              </p>
             </div>
           </div>
           <div class="loading-bar" style="width:100%;"></div>
-          <div class="loading-bar" style="width:75%;"></div>
+          <div class="loading-bar" style="width:78%;"></div>
           <div class="loading-bar" style="width:55%;"></div>
         </div>
 
-        <!-- Estado resultado -->
+        <!-- ── Estado resultado ── -->
         <div id="stateResult" style="display:none;">
 
           <!-- Score + veredicto chip -->
-          <div class="score-display">
-            <span id="scoreValue" class="score-number" style="color:#22c55e;">0</span>
+          <div style="display:flex;align-items:baseline;gap:16px;margin-bottom:1.5rem;">
+            <span id="scoreValue" class="score-number" style="color:#16a34a;">0</span>
             <div style="display:flex;flex-direction:column;gap:6px;padding-bottom:6px;">
-              <span
-                style="font-size:11px;font-weight:600;color:#9ca3af;text-transform:uppercase;letter-spacing:0.08em;">Score
-                de Riesgo</span>
-              <span id="verdictChip" class="verdict-chip" style="background:#d1fae5;color:#065f46;">
-                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" stroke="currentColor"
-                  stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
-                  <polyline points="20 6 9 17 4 12" />
-                </svg>
-                Aprobada
+              <span style="font-size:11px;font-weight:600;color:#9ca3af;
+                                         text-transform:uppercase;letter-spacing:0.08em;">
+                Score de Riesgo
+              </span>
+              <span id="verdictChip" class="verdict-chip" style="background:#dcfce7;color:#166534;">
+                ✅ Aprobada
               </span>
             </div>
           </div>
@@ -632,7 +605,7 @@
           <!-- Barra de riesgo -->
           <div style="margin-bottom:1.25rem;">
             <div class="risk-bar-track">
-              <div id="scoreBar" class="risk-bar-fill" style="background:linear-gradient(to right,#22c55e,#16a34a);">
+              <div id="scoreBar" class="risk-bar-fill" style="background:linear-gradient(to right,#4ade80,#16a34a);">
               </div>
             </div>
             <div class="score-markers">
@@ -644,20 +617,24 @@
 
           <!-- Alerta de veredicto -->
           <div id="verdictAlert" class="verdict-alert" style="background:#f0fdf4;border-color:#22c55e;">
-            <p id="verdictTitle" style="font-size:13px;font-weight:700;color:#166534;margin-bottom:4px;">Aprobada —
-              Transacción Segura</p>
+            <p id="verdictTitle" style="font-size:13px;font-weight:700;color:#166534;margin-bottom:4px;">
+              Aprobada — Transacción Segura
+            </p>
             <p id="verdictMessage" style="font-size:13px;color:#166534;line-height:1.55;">
-              Score de riesgo bajo. El patrón de uso es consistente con el historial habitual.
+              Score de riesgo bajo. La transacción pasa directamente.
             </p>
           </div>
 
           <!-- Footer del resultado -->
-          <div
-            style="display:flex;align-items:center;justify-content:space-between;margin-top:1rem;padding-top:1rem;border-top:1px solid #f3f4f6;">
-            <span style="font-size:11px;color:#9ca3af;" id="analysis-time">— ms</span>
-            <button onclick="resetState()"
-              style="font-size:12px;color:#9ca3af;background:none;border:none;cursor:pointer;padding:4px 8px;border-radius:6px;transition:background 0.15s;"
-              onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='none'">
+          <div style="display:flex;align-items:center;justify-content:space-between;
+                                margin-top:1rem;padding-top:1rem;border-top:1px solid #f3f4f6;">
+            <span id="analysis-time" style="font-size:11px;color:#9ca3af;">
+              — ms · FastAPI
+            </span>
+            <button onclick="resetState()" style="font-size:12px;color:#9ca3af;background:none;border:none;
+                                       cursor:pointer;padding:4px 8px;border-radius:6px;
+                                       transition:background 0.15s;" onmouseover="this.style.background='#f3f4f6'"
+              onmouseout="this.style.background='none'">
               Nuevo análisis ↺
             </button>
           </div>
@@ -668,53 +645,17 @@
   </main>
 
   <!-- ── FOOTER ─────────────────────────────────────────────────── -->
-  <footer style="border-top:1px solid #ede9fe;margin-top:2rem;padding:1rem 1.5rem;background:white;">
-    <div
-      style="max-width:1200px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;font-size:11px;color:#9ca3af;">
-      <span>© 2026 LPDV Team · Plux Motor Antifraude v1 · Demo</span>
+  <footer style="border-top:1px solid #ede9fe;margin-top:2rem;
+                   padding:1rem 1.5rem;background:white;">
+    <div style="max-width:1200px;margin:0 auto;
+                    display:flex;align-items:center;justify-content:space-between;
+                    font-size:11px;color:#9ca3af;">
+      <span>© 2026 LPDV Team · Plux Motor Antifraude v1 · FastAPI</span>
       <span id="footer-user" style="font-weight:500;"></span>
     </div>
   </footer>
 
-  <!-- Lógica de la SPA -->
-  <script src="app.js" defer></script>
-
-  <script>
-    // Mostrar user en footer
-    const userId = localStorage.getItem('plux_user_id');
-    if (userId) {
-      document.getElementById('footer-user').textContent = `ID: ${userId.slice(0, 8)}…`;
-    }
-
-    // Logout
-    function handleLogout() {
-      localStorage.removeItem('plux_token');
-      localStorage.removeItem('plux_user_id');
-      window.location.href = '../auth/login.html';
-    }
-
-    // Reset estado a inicial
-    function resetState() {
-      document.getElementById('stateResult').style.display = 'none';
-      document.getElementById('stateInitial').style.display = 'flex';
-      document.getElementById('mode-badge').textContent = 'En espera';
-      document.getElementById('mode-badge').style.color = '#7c3aed';
-    }
-
-    // Spinner del botón durante análisis
-    const origAnalyze = window.onAnalyzeStart;
-    document.getElementById('analyzeButton').addEventListener('click', function () {
-      document.getElementById('analyze-spinner').style.display = 'block';
-      document.getElementById('analyze-text').textContent = 'Analizando…';
-      setTimeout(() => {
-        document.getElementById('analyze-spinner').style.display = 'none';
-        document.getElementById('analyze-text').textContent = 'Ejecutar Análisis de Riesgo';
-        document.getElementById('mode-badge').textContent = 'Resultado';
-        const t = Date.now();
-        document.getElementById('analysis-time').textContent = `${Math.floor(Math.random() * 80 + 120)} ms`;
-      }, 1700);
-    }, false);
-  </script>
+  <script src="app.js?v=2" defer></script>
 
 </body>
 

@@ -1,210 +1,307 @@
-// Referencias a elementos del DOM
-const analyzeButton = document.getElementById("analyzeButton");
-const scenarioSelect = document.getElementById("scenarioSelect");
-const payloadInput = document.getElementById("payloadInput");
+// app.js — Motor Antifraude Plux
+// Integración real con POST /v1/transactions/evaluate
+// ⚠️ Solo frontend — no se toca el backend.
 
-const stateInitial = document.getElementById("stateInitial");
-const stateLoading = document.getElementById("stateLoading");
-const stateResult = document.getElementById("stateResult");
+const API_BASE = 'http://localhost:8000';
 
-const scoreValue = document.getElementById("scoreValue");
-const scoreBar = document.getElementById("scoreBar");
-const verdictAlert = document.getElementById("verdictAlert");
-const verdictTitle = document.getElementById("verdictTitle");
-const verdictMessage = document.getElementById("verdictMessage");
-const verdictChip = document.getElementById("verdictChip");
+// ── DOM refs ──────────────────────────────────────────────────────────────────
+const analyzeButton = document.getElementById('analyzeButton');
+const payloadInput = document.getElementById('payloadInput');
+const stateInitial = document.getElementById('stateInitial');
+const stateLoading = document.getElementById('stateLoading');
+const stateResult = document.getElementById('stateResult');
+const scoreValue = document.getElementById('scoreValue');
+const scoreBar = document.getElementById('scoreBar');
+const verdictAlert = document.getElementById('verdictAlert');
+const verdictTitle = document.getElementById('verdictTitle');
+const verdictMessage = document.getElementById('verdictMessage');
+const verdictChip = document.getElementById('verdictChip');
+const analysisTime = document.getElementById('analysis-time');
+const modeBadge = document.getElementById('mode-badge');
+const analyzeText = document.getElementById('analyze-text');
+const analyzeSpinner = document.getElementById('analyze-spinner');
+const footerUser = document.getElementById('footer-user');
 
-// Clases Tailwind que iremos cambiando según el score
-const TEXT_COLOR_CLASSES = ["text-emerald-600", "text-yellow-600", "text-red-600"];
-const BAR_COLOR_CLASSES = ["bg-emerald-500", "bg-yellow-500", "bg-red-600"];
-const ALERT_BG_CLASSES = ["bg-emerald-50", "bg-yellow-50", "bg-red-50"];
-const ALERT_BORDER_CLASSES = ["border-emerald-500", "border-yellow-500", "border-red-600"];
-const ALERT_TEXT_TITLE_CLASSES = [
-  "text-emerald-700",
-  "text-yellow-700",
-  "text-red-700"
+// ── Payload de prueba por defecto ─────────────────────────────────────────────
+const DEFAULT_PAYLOAD = {
+  "user_id": "c8229c16-64f1-4f9d-91d3-0578998bde17",
+  "device_id": "dev-new-001",
+  "card_bin": "411121",
+  "amount": 5000.00,
+  "currency": "MXN",
+  "ip_address": "189.201.50.11",
+  "latitude": 19.43,
+  "longitude": -99.13,
+  "transaction_type": "TOP_UP",
+  "session_id": "be9f6cf2-573d-488b-b5e1-46919ead6b55",
+  "timestamp": "2026-02-26T10:00:00Z",
+  "user_agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0)",
+  "sdk_version": "ios_4.2.1",
+  "account_age_days": 2,
+  "avg_monthly_amount": 100.00,
+  "kyc_level": "none",
+  "form_fill_time_seconds": 50
+};
+
+// ── Temas visuales por nivel de riesgo ───────────────────────────────────────
+// level 0 = Seguro (0-20), 1 = Sospechoso (21-70), 2 = Fraude (71-100)
+const RISK_THEMES = [
+  {
+    scoreColor: '#16a34a',
+    barGradient: 'linear-gradient(to right, #4ade80, #16a34a)',
+    alertBg: '#f0fdf4',
+    alertBorder: '#22c55e',
+    textColor: '#166534',
+    chipBg: '#dcfce7',
+    chipColor: '#166534',
+    chipIcon: '<polyline points="20 6 9 17 4 12"/>',
+    chipLabel: '✅ Aprobada',
+    badgeLabel: 'Aprobada',
+    title: 'Aprobada — Transacción Segura',
+    message: 'Score de riesgo bajo. El patrón de uso es consistente con el historial. La transacción pasa directamente sin fricción adicional.',
+  },
+  {
+    scoreColor: '#d97706',
+    barGradient: 'linear-gradient(to right, #fbbf24, #d97706)',
+    alertBg: '#fffbeb',
+    alertBorder: '#f59e0b',
+    textColor: '#92400e',
+    chipBg: '#fef3c7',
+    chipColor: '#92400e',
+    chipIcon: '<path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>',
+    chipLabel: '⚠️ Sospechosa',
+    badgeLabel: 'Sospechosa',
+    title: 'Sospechosa — Validación Secundaria',
+    message: 'Se detectaron señales de anomalía. Se recomienda verificación adicional (OTP / challenge) antes de liberar los fondos.',
+  },
+  {
+    scoreColor: '#dc2626',
+    barGradient: 'linear-gradient(to right, #f87171, #dc2626)',
+    alertBg: '#fef2f2',
+    alertBorder: '#ef4444',
+    textColor: '#991b1b',
+    chipBg: '#fee2e2',
+    chipColor: '#991b1b',
+    chipIcon: '<circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>',
+    chipLabel: '🚨 Fraude',
+    badgeLabel: 'Fraude',
+    title: 'Rechazada — Fraude Detectado',
+    message: 'El patrón coincide con vectores de fraude conocidos. Transacción bloqueada automáticamente. Escalar al área de investigaciones.',
+  },
 ];
-const CHIP_BG_CLASSES = ["bg-emerald-50", "bg-yellow-50", "bg-red-50"];
-const CHIP_TEXT_CLASSES = ["text-emerald-700", "text-yellow-700", "text-red-700"];
-const CHIP_BORDER_CLASSES = [
-  "border-emerald-200",
-  "border-yellow-200",
-  "border-red-200"
-];
 
-// Maneja el clic en "Ejecutar Análisis de Riesgo"
-analyzeButton.addEventListener("click", () => {
-  const rawPayload = payloadInput.value.trim();
-  const scenario = scenarioSelect.value;
-
-  // Intento opcional de parseo, para mostrar cómo se podría enviar a FastAPI.
-  let parsedPayload = null;
-  if (rawPayload) {
-    try {
-      parsedPayload = JSON.parse(rawPayload);
-    } catch (error) {
-      console.warn("JSON inválido. En la demo no se rompe la UI.", error);
-    }
+// ── Inicialización ────────────────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', () => {
+  // Rellenar textarea con payload por defecto si está vacío
+  if (!payloadInput.value.trim()) {
+    payloadInput.value = JSON.stringify(DEFAULT_PAYLOAD, null, 2);
   }
 
-  // En este punto es donde conectarías con FastAPI.
-  // Ejemplo orientativo (comentado):
-  //
-  // fetch("http://localhost:8000/analizar-riesgo", {
-  //   method: "POST",
-  //   headers: {
-  //     "Content-Type": "application/json"
-  //   },
-  //   body: JSON.stringify(parsedPayload || { raw: rawPayload })
-  // })
-  //   .then((res) => res.json())
-  //   .then((data) => {
-  //     const score = data.score;
-  //     showResultState(score);
-  //   })
-  //   .catch((err) => {
-  //     console.error("Error llamando a FastAPI", err);
-  //   });
+  // Mostrar user ID en footer
+  const userId = localStorage.getItem('plux_user_id');
+  if (userId && footerUser) {
+    footerUser.textContent = `ID: ${userId.slice(0, 8)}…`;
+  }
 
-  // Para la demo, generamos el score en front según el escenario forzado.
-  const simulatedScore = generateScoreByScenario(scenario);
-
-  // Simulamos latencia de red de 1.5s
-  showLoadingState();
-  setButtonLoading(true);
-
-  setTimeout(() => {
-    showResultState(simulatedScore);
-    setButtonLoading(false);
-  }, 1500);
+  showState('initial');
 });
 
-/**
- * Genera un score aleatorio según el escenario seleccionado.
- */
-function generateScoreByScenario(scenario) {
-  switch (scenario) {
-    case "approved":
-      // 0 a 20
-      return getRandomIntInclusive(0, 20);
-    case "suspicious":
-      // 21 a 69
-      return getRandomIntInclusive(21, 69);
-    case "fraud":
-      // 70 a 100
-      return getRandomIntInclusive(70, 100);
-    case "random":
-    default:
-      // 0 a 100
-      return getRandomIntInclusive(0, 100);
+// ── Gestión de estados de la UI ───────────────────────────────────────────────
+function showState(state) {
+  stateInitial.style.display = (state === 'initial') ? 'flex' : 'none';
+  stateLoading.style.display = (state === 'loading') ? 'flex' : 'none';
+  stateResult.style.display = (state === 'result') ? 'block' : 'none';
+}
+
+function setButtonLoading(loading) {
+  analyzeButton.disabled = loading;
+  if (analyzeText) analyzeText.textContent = loading ? 'Analizando…' : 'Ejecutar Análisis de Riesgo';
+  if (analyzeSpinner) analyzeSpinner.style.display = loading ? 'block' : 'none';
+}
+
+// ── Lógica de negocio: determinar nivel de riesgo ────────────────────────────
+function getRiskLevel(score) {
+  if (score <= 20) return 0;  // Seguro
+  if (score <= 70) return 1;  // Sospechoso
+  return 2;                   // Fraude
+}
+
+// ── Aplicar tema visual según nivel ──────────────────────────────────────────
+function applyTheme(level, score) {
+  const t = RISK_THEMES[level];
+
+  // Score numérico
+  scoreValue.textContent = String(Math.round(score));
+  scoreValue.style.color = t.scoreColor;
+
+  // Barra de riesgo (animada)
+  setTimeout(() => {
+    scoreBar.style.width = `${Math.min(score, 100)}%`;
+    scoreBar.style.background = t.barGradient;
+  }, 80);
+
+  // Caja de alerta
+  verdictAlert.style.background = t.alertBg;
+  verdictAlert.style.borderColor = t.alertBorder;
+  verdictAlert.style.borderLeftColor = t.alertBorder;
+
+  // Textos
+  verdictTitle.textContent = t.title;
+  verdictTitle.style.color = t.textColor;
+  verdictMessage.textContent = t.message;
+  verdictMessage.style.color = t.textColor;
+
+  // Chip de veredicto
+  verdictChip.style.background = t.chipBg;
+  verdictChip.style.color = t.chipColor;
+  verdictChip.innerHTML = `
+        <svg style="flex-shrink:0;" width="12" height="12" fill="none" stroke="currentColor"
+             stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+            ${t.chipIcon}
+        </svg>
+        ${t.chipLabel}
+    `;
+
+  // Badge en la cabecera de la card
+  if (modeBadge) {
+    modeBadge.textContent = t.badgeLabel;
+    modeBadge.style.background = t.chipBg;
+    modeBadge.style.color = t.chipColor;
+    modeBadge.style.borderColor = t.alertBorder;
   }
 }
 
-/**
- * Número entero aleatorio entre min y max (ambos inclusive).
- */
-function getRandomIntInclusive(min, max) {
-  const minCeil = Math.ceil(min);
-  const maxFloor = Math.floor(max);
-  return Math.floor(Math.random() * (maxFloor - minCeil + 1)) + minCeil;
+// ── Mostrar resultado final ───────────────────────────────────────────────────
+function showResultState(score, data) {
+  showState('result');
+  const level = getRiskLevel(score);
+  applyTheme(level, score);
+  console.info('[Plux Motor] Respuesta completa del backend:', data);
 }
 
-/**
- * Muestra el estado de carga (skeleton / spinner).
- */
-function showLoadingState() {
-  stateInitial.classList.add("hidden");
-  stateResult.classList.add("hidden");
-  stateLoading.classList.remove("hidden");
-}
-
-/**
- * Muestra el estado de resultado y aplica la lógica de negocio visual.
- */
-function showResultState(score) {
-  // Ocultamos estados previos
-  stateInitial.classList.add("hidden");
-  stateLoading.classList.add("hidden");
-  stateResult.classList.remove("hidden");
-
-  // Mostramos el score numérico
-  scoreValue.textContent = String(score);
-  scoreBar.style.width = `${score}%`;
-
-  // Determinamos el índice de color según la regla de negocio
-  // 0 – 20: verde
-  // 21 – 69: amarillo/naranja
-  // 70 – 100: rojo
-  let colorIndex = 0; // 0 = verde, 1 = amarillo, 2 = rojo
-  if (score <= 20) {
-    colorIndex = 0;
-  } else if (score <= 69) {
-    colorIndex = 1;
-  } else {
-    colorIndex = 2;
-  }
-
-  applyColorScheme(colorIndex);
-
-  // Mensajes según el rango
-  if (colorIndex === 0) {
-    // Aprobado
-    verdictTitle.textContent = "Aprobada - Transacción Segura";
-    verdictMessage.textContent =
-      "Pasa directa sin problemas. El score de riesgo es bajo y el patrón de uso es consistente.";
-    verdictChip.textContent = "Aprobada";
-  } else if (colorIndex === 1) {
-    // Sospechosa
-    verdictTitle.textContent = "Sospechosa - Requiere Validación Secundaria";
-    verdictMessage.textContent =
-      "Se recomienda verificación adicional (OTP, challenge, documentación) antes de liberar los fondos.";
-    verdictChip.textContent = "Sospechosa";
-  } else {
-    // Fraude
-    verdictTitle.textContent = "Rechazada - Fraude Directo";
-    verdictMessage.textContent =
-      "El patrón coincide con intentos de fraude conocidos. Bloquear y escalar al área de investigaciones.";
-    verdictChip.textContent = "Fraude";
+// ── Reset a estado inicial ────────────────────────────────────────────────────
+function resetState() {
+  showState('initial');
+  scoreBar.style.width = '0%';
+  if (modeBadge) {
+    modeBadge.textContent = 'En espera';
+    modeBadge.style.background = '#f5f3ff';
+    modeBadge.style.color = '#7c3aed';
+    modeBadge.style.borderColor = '#ede9fe';
   }
 }
 
-/**
- * Aplica todas las clases de color según el índice elegido (0=verde, 1=amarillo, 2=rojo).
- */
-function applyColorScheme(index) {
-  // Limpiamos clases previas
-  TEXT_COLOR_CLASSES.forEach((cls) => scoreValue.classList.remove(cls));
-  BAR_COLOR_CLASSES.forEach((cls) => scoreBar.classList.remove(cls));
-  ALERT_BG_CLASSES.forEach((cls) => verdictAlert.classList.remove(cls));
-  ALERT_BORDER_CLASSES.forEach((cls) => verdictAlert.classList.remove(cls));
-  ALERT_TEXT_TITLE_CLASSES.forEach((cls) => verdictTitle.classList.remove(cls));
-  CHIP_BG_CLASSES.forEach((cls) => verdictChip.classList.remove(cls));
-  CHIP_TEXT_CLASSES.forEach((cls) => verdictChip.classList.remove(cls));
-  CHIP_BORDER_CLASSES.forEach((cls) => verdictChip.classList.remove(cls));
+// ── Toast de error ────────────────────────────────────────────────────────────
+function showErrorToast(message) {
+  const prev = document.getElementById('motor-toast');
+  if (prev) prev.remove();
 
-  // Aplicamos las nuevas
-  scoreValue.classList.add(TEXT_COLOR_CLASSES[index]);
-  scoreBar.classList.add(BAR_COLOR_CLASSES[index]);
-  verdictAlert.classList.add(ALERT_BG_CLASSES[index], ALERT_BORDER_CLASSES[index]);
-  verdictTitle.classList.add(ALERT_TEXT_TITLE_CLASSES[index]);
-  verdictChip.classList.add(
-    CHIP_BG_CLASSES[index],
-    CHIP_TEXT_CLASSES[index],
-    CHIP_BORDER_CLASSES[index]
-  );
+  const toast = document.createElement('div');
+  toast.id = 'motor-toast';
+  toast.style.cssText = [
+    'position:fixed', 'bottom:24px', 'right:24px', 'z-index:9999',
+    'background:#fef2f2', 'border:1.5px solid #fca5a5', 'color:#b91c1c',
+    'border-radius:14px', 'padding:14px 18px',
+    'display:flex', 'align-items:flex-start', 'gap:12px',
+    'font-size:13px', 'font-weight:600', 'font-family:Inter,sans-serif',
+    'box-shadow:0 8px 30px rgba(0,0,0,0.15)', 'cursor:pointer',
+    'max-width:420px',
+  ].join(';');
+
+  toast.innerHTML = `
+        <svg style="flex-shrink:0;margin-top:1px;" width="16" height="16" fill="none" stroke="#ef4444"
+             stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="12" y1="8" x2="12" y2="12"/>
+            <line x1="12" y1="16" x2="12.01" y2="16"/>
+        </svg>
+        <span style="flex:1;line-height:1.5;">${message}</span>
+        <button onclick="this.parentElement.remove()"
+                style="background:none;border:none;cursor:pointer;color:#b91c1c;
+                       font-size:18px;line-height:1;padding:0;flex-shrink:0;">×</button>
+    `;
+
+  document.body.appendChild(toast);
+  toast.addEventListener('click', () => toast.remove());
+  setTimeout(() => toast?.remove(), 6000);
 }
 
-/**
- * Marca o desmarca el botón principal como "cargando".
- */
-function setButtonLoading(isLoading) {
-  if (isLoading) {
-    analyzeButton.disabled = true;
-    analyzeButton.classList.add("opacity-70", "cursor-wait");
-    analyzeButton.textContent = "Analizando...";
-  } else {
-    analyzeButton.disabled = false;
-    analyzeButton.classList.remove("opacity-70", "cursor-wait");
-    analyzeButton.textContent = "Ejecutar Análisis de Riesgo";
+// ── Manejador principal del botón ─────────────────────────────────────────────
+analyzeButton.addEventListener('click', async () => {
+  const rawPayload = payloadInput.value.trim();
+
+  // 1. Validar que el textarea contenga JSON válido
+  let parsedPayload;
+  try {
+    parsedPayload = JSON.parse(rawPayload);
+  } catch (err) {
+    showErrorToast('⚠️ El JSON del payload es inválido. Revisa el formato antes de enviar.');
+    return;
   }
+
+  // 2. Verificar que haya sesión activa
+  const token = localStorage.getItem('plux_token');
+  if (!token) {
+    showErrorToast('No hay sesión activa. Redirigiendo al login…');
+    setTimeout(() => { window.location.href = '../auth/login.html'; }, 1500);
+    return;
+  }
+
+  // 3. Mostrar estado de carga
+  showState('loading');
+  setButtonLoading(true);
+
+  const startTime = Date.now();
+
+  try {
+    const response = await fetch(`${API_BASE}/v1/transactions/evaluate`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${token}`,
+        'x-signature': 'dummy_signature_123',
+      },
+      body: JSON.stringify(parsedPayload),
+    });
+
+    const elapsed = Date.now() - startTime;
+    if (analysisTime) analysisTime.textContent = `${elapsed} ms · FastAPI`;
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      // Extraer mensaje de error del backend (Pydantic o custom)
+      let errMsg;
+      if (typeof data?.detail === 'string') {
+        errMsg = data.detail;
+      } else if (Array.isArray(data?.detail)) {
+        errMsg = data.detail.map(e => `${e.loc?.slice(-1)?.[0] ?? ''}: ${e.msg}`).join(' · ');
+      } else {
+        errMsg = `Error ${response.status} — ${response.statusText}`;
+      }
+      console.error('[Plux Motor] Error del backend:', data);
+      showState('initial');
+      showErrorToast(`Error ${response.status}: ${errMsg}`);
+      return;
+    }
+
+    // 4. Extraer risk_score de la respuesta
+    const score = parseFloat(data.risk_score ?? data.score ?? 0);
+    showResultState(score, data);
+
+  } catch (err) {
+    console.error('[Plux Motor] Error de red:', err);
+    showState('initial');
+    showErrorToast('No se pudo conectar con el backend. Verifica que el servidor Docker esté activo en el puerto 8000.');
+  } finally {
+    setButtonLoading(false);
+  }
+});
+
+// ── Logout global ─────────────────────────────────────────────────────────────
+function handleLogout() {
+  localStorage.removeItem('plux_token');
+  localStorage.removeItem('plux_user_id');
+  window.location.href = '../auth/login.html';
 }
