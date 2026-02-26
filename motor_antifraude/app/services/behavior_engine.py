@@ -34,6 +34,15 @@ PENALTY_AMOUNT_3X_AVERAGE   = 20   # Monto > 3x su promedio histórico
 PENALTY_CURRENCY_CHANGE     = 12   # Cambio de moneda habitual
 PENALTY_FIRST_WEEK_USER     = 10   # Cuenta con < 7 días de antigüedad
 PENALTY_NEW_RECIPIENT       = 10   # Primer pago a este destinatario (P2P)
+PENALTY_PROFILE_CHANGE_24H  = 25   
+PENALTY_FAST_LOGIN_TX       = 15   
+                                   
+PENALTY_UNUSUAL_HOUR        = 15   
+PENALTY_AMOUNT_10X_AVERAGE  = 35   
+PENALTY_AMOUNT_3X_AVERAGE   = 20  
+PENALTY_CURRENCY_CHANGE     = 12  
+PENALTY_FIRST_WEEK_USER     = 10  
+PENALTY_NEW_RECIPIENT       = 10  
 
 REDUCTION_FREQUENT_RECIPIENT = -12  
 REDUCTION_PAYDAY_WINDOW      = -10  
@@ -123,7 +132,7 @@ class BehaviorEngine:
             result.score = max(0.0, min(100.0, result.score))
             return result
 
-
+        
         current_hour = now.hour
         if profile.typical_hours and current_hour not in profile.typical_hours:
             result.is_unusual_hour = True

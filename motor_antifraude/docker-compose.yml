@@ -1,6 +1,7 @@
 version: '3.8'
 
 services:
+  # API PRINCIPAL
   api:
     build: .
     ports:
@@ -12,8 +13,21 @@ services:
     depends_on:
       - db
       - cache
+      - ml_service  # Arranca siempre con el servicio de ML
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
+  # MACHINE LEARNING SERVICE (IA)
+  ml_service:
+    build: ./ml_service
+    ports:
+      - "8001:8001"
+    volumes:
+      # Sincronizamos la carpeta local para que si reentrenas el modelo (.pkl), 
+      # el contenedor lo detecte sin tener que reconstruir la imagen.
+      - ./ml_service:/app
+    command: uvicorn ml_api:app --host 0.0.0.0 --port 8001 --reload
+
+  # DB
   db:
     image: postgres:15-alpine
     environment:
@@ -25,6 +39,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
+  # CACHE (Redis)
   cache:
     image: redis:7-alpine
     ports:

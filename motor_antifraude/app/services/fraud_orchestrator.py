@@ -40,6 +40,7 @@ import logging
 import os
 import time
 import uuid
+import httpx
 from typing import Optional, Tuple
 
 from app.domain.schemas import (
@@ -70,6 +71,8 @@ from fastapi import Header
 logger = logging.getLogger(__name__)
 
 _EXACT_CATALOG: dict[str, tuple[int, str, str]] = {
+    # ── Inteligencia Artificial ML───────────────────────────────
+    "AI_MODEL_HIGH_FRAUD_PROBABILITY": (30, "Inteligencia Artificial", "El modelo de Machine Learning detectó un patrón de comportamiento anómalo de alto riesgo."),
 
     # ── Blacklist ─────────────────────────────────────────────────────
     "BLACKLIST_USER_HIT":              (100, "Lista negra",    "El usuario está en lista negra permanente."),
@@ -282,12 +285,12 @@ _HMAC_SECRET: bytes = os.environ.get(
 
 
 class FraudOrchestrator:
-
-    W1_VELOCITY = 0.25
-    W2_DEVICE   = 0.20
-    W3_GEO      = 0.20
-    W4_BEHAVIOR = 0.20
-    W5_EXTERNAL = 0.15
+    W1_VELOCITY = 0.15
+    W2_DEVICE   = 0.15
+    W3_GEO      = 0.15
+    W4_BEHAVIOR = 0.15
+    W5_EXTERNAL = 0.10
+    W6_ML       = 0.30
 
     def __init__(self):
         self.topup_engine    = TopUpRulesEngine()
@@ -442,6 +445,7 @@ class FraudOrchestrator:
             time_pattern_scorer.score(                      # [9] → TimePatternResult
                 user_id = str(payload.user_id),
             ),
+            self._query_ml_model(payload),                 # [10] → MLModelResult (el módulo de IA)
         ]
 
         if is_p2p and payload.recipient_id:
@@ -466,9 +470,10 @@ class FraudOrchestrator:
         session_result  = self._safe_result(raw_results[7], "session_guard")
         card_test_result = self._safe_result(raw_results[8], "card_testing")
         time_result     = self._safe_result(raw_results[9], "time_pattern")
+        ml_score        = self._safe_float(raw_results[10], "ml_model", 0.0)
         p2p_result      = (
-            self._safe_result(raw_results[10], "p2p")
-            if is_p2p and len(raw_results) > 10
+            self._safe_result(raw_results[11], "p2p")
+            if is_p2p and len(raw_results) > 11
             else None
         )
 
@@ -479,10 +484,13 @@ class FraudOrchestrator:
         weighted_score = (
             (self.W1_VELOCITY * velocity_score)  +
             (self.W2_DEVICE   * device_score)    +
-            (self.W3_GEO      * geo_score)        +
-            (self.W4_BEHAVIOR * behavior_score)   +
-            (self.W5_EXTERNAL * ext_score)
+            (self.W3_GEO      * geo_score)       +
+            (self.W4_BEHAVIOR * behavior_score)  +
+            (self.W5_EXTERNAL * ext_score)       +
+            (self.W6_ML       * ml_score)        
         )
+
+        
 
         # Contribuciones reales de los módulos ponderados
         # Se registran ANTES de extend(geo/behavior reason_codes) para tener los códigos listos
@@ -626,8 +634,10 @@ class FraudOrchestrator:
             weighted_score += time_result.penalty * self.W4_BEHAVIOR
             final_score = int(max(0, min(100, weighted_score + p2p_penalty + trust_reduction)))
 
-        # ── Códigos de dispositivo/velocidad ─────────────────────────────────
-        # Si superan el umbral: reemplazar entry genérico por el código real
+        # ── Códigos de dispositivo/velocidad — delta real antes/después ─────
+        if ml_score >= 75.0:
+            reason_codes.append("AI_MODEL_HIGH_FRAUD_PROBABILITY")
+            contributions["AI_MODEL_HIGH_FRAUD_PROBABILITY"] = round(self.W6_ML * ml_score) 
         if device_score >= 80:
             reason_codes.append("EMULATOR_OR_ROOT_DETECTED")
             contributions.pop("__DEVICE_BASE__", None)
@@ -1045,5 +1055,32 @@ class FraudOrchestrator:
             logger.error(
                 f"[Background] Error actualizando contadores user={user_id}: {e}"
             )
+    async def _query_ml_model(self, payload: TransactionPayload) -> float:
+        ml_data = {
+            "amount": float(getattr(payload, 'amount', 0.0)),
+            "account_age_days": int(getattr(payload, 'account_age_days', 30) or 30),
+            "failed_tx_last_7_days": int(getattr(payload, 'failed_tx_last_7_days', 0) or 0),
+            "form_fill_time_seconds": int(getattr(payload, 'form_fill_time_seconds', 15) or 15),
+            "paste_count": int(getattr(payload, 'paste_count', 0) or 0),
+            "is_vpn_or_proxy": bool(getattr(payload, 'is_vpn_or_proxy', False) or False),
+            "is_international_card": bool(getattr(payload, 'is_international_card', False) or False),
+            "is_rooted_device": bool(getattr(payload, 'is_rooted_device', False) or False),
+            "is_emulator": bool(getattr(payload, 'is_emulator', False) or False),
+            "tx_count_last_30_days": int(getattr(payload, 'tx_count_last_30_days', 5) or 5),
+            "device_tx_last_24h": int(getattr(payload, 'device_tx_last_24h', 1) or 1),
+            "time_since_last_tx_minutes": int(getattr(payload, 'time_since_last_tx_minutes', 1440) or 1440),
+            "session_duration_seconds": int(getattr(payload, 'session_duration_seconds', 120) or 120)
+        }
+        try:
+            async with httpx.AsyncClient(timeout=0.150) as client:
+                response = await client.post("http://ml_service:8001/predict", json=ml_data)
+                if response.status_code == 200:
+                    return float(response.json().get("fraud_probability", 0.0) * 100)
+                else:
+                    logger.warning(f"[ML Model] HTTP {response.status_code}")
+                    return 0.0
+        except Exception as e:
+            logger.warning(f"[ML Model] Fallo de conexión: {str(e)}")
+            return 0.0
 
 fraud_orchestrator = FraudOrchestrator()
