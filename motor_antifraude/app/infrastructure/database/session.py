@@ -20,9 +20,14 @@ from sqlalchemy.ext.asyncio import (
 
 from app.core.config import settings
 
+# Fix asyncpg issue with sslmode
+db_url = settings.DATABASE_URL
+if "?sslmode=" in db_url:
+    db_url = db_url.split("?sslmode=")[0]
+
 # ── Motor de base de datos ────────────────────────────────────────────
 engine = create_async_engine(
-    settings.DATABASE_URL,
+    db_url,
     echo           = settings.DEBUG,   # Loggea SQL solo en desarrollo
     pool_pre_ping  = True,             # Verifica conexión antes de usarla
     pool_size      = 10,               # Conexiones permanentes en el pool

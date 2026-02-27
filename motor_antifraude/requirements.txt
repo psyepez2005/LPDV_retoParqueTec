@@ -32,11 +32,14 @@ watchfiles==1.1.1
 websockets==16.0
 
 # Auth
-bcrypt
+bcrypt==4.1.2
 PyJWT
 cryptography
 python-jose[cryptography]
 passlib[bcrypt]
 python-multipart
+
 # Email
 aiosmtplib
+pydantic[email]
+email-validator
