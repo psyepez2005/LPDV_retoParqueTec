@@ -1,9 +1,4 @@
-// register.js — Lógica de registro para Plux
-// POST /v1/auth/register — Content-Type: multipart/form-data (via FormData)
-//
-// ⚠️ IMPORTANTE: NO se añade el header 'Content-Type' manualmente.
-// El navegador lo añade automáticamente con el boundary correcto
-// cuando el body es un objeto FormData.
+
 
 const API_BASE = 'http://localhost:8000';
 

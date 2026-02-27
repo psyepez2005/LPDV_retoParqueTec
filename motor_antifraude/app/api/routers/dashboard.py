@@ -1,12 +1,4 @@
-"""
-dashboard.py — Router del Dashboard Antifraude
----------------------------------------------
-Expone:
-  GET  /v1/dashboard/summary          → Resumen completo para el dashboard
-  GET  /v1/dashboard/summary?period_hours=N → Configurable por ventana de tiempo
-  POST /v1/dashboard/merchants        → Registrar un nuevo comercio
-  GET  /v1/dashboard/merchants        → Listar comercios activos
-"""
+
 
 import uuid
 from datetime import datetime, timezone
@@ -29,7 +21,6 @@ from app.infrastructure.database.session import get_db
 router = APIRouter(prefix="/v1/dashboard", tags=["Dashboard"])
 
 
-# ── GET /v1/dashboard/summary ─────────────────────────────────────────
 
 @router.get(
     "/summary",
@@ -56,7 +47,6 @@ async def get_dashboard_summary(
     )
 
 
-# ── POST /v1/dashboard/merchants ──────────────────────────────────────
 
 @router.post(
     "/merchants",
@@ -69,7 +59,6 @@ async def create_merchant(
     db:           AsyncSession = Depends(get_db),
     _current_user = Depends(get_current_user),
 ):
-    # Verificar duplicado por RUC
     if body.ruc:
         existing = await db.execute(
             select(Merchant).where(Merchant.ruc == body.ruc)
@@ -102,7 +91,6 @@ async def create_merchant(
     )
 
 
-# ── GET /v1/dashboard/merchants ───────────────────────────────────────
 
 @router.get(
     "/merchants",

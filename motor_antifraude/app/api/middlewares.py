@@ -46,10 +46,11 @@ class GeoEnrichmentMiddleware(BaseHTTPMiddleware):
         if card_bin:
             tasks.append(bin_lookup_client.lookup(card_bin))
 
-        results = await asyncio.gather(*tasks, return_exceptions=True)
+        results: list = list(await asyncio.gather(*tasks, return_exceptions=True))
 
-        geo_result = results[0] if not isinstance(results[0], Exception) else None
-        if geo_result and geo_result.success:
+        raw_geo = results[0]
+        geo_result = raw_geo if not isinstance(raw_geo, BaseException) else None
+        if geo_result is not None and getattr(geo_result, "success", False):
             request.state.ip_address  = ip_address
             request.state.ip_country  = geo_result.ip_country
             request.state.ip_city     = geo_result.ip_city
@@ -61,15 +62,12 @@ class GeoEnrichmentMiddleware(BaseHTTPMiddleware):
             request.state.ip_city     = "Unknown"
             request.state.is_vpn      = False
             request.state.is_hosting  = False
-            if isinstance(results[0], Exception):
-                logger.error(f"[GeoEnrichment] GeoIP falló: {results[0]}")
+            if isinstance(raw_geo, BaseException):
+                logger.error(f"[GeoEnrichment] GeoIP falló: {raw_geo}")
 
         if card_bin and len(results) > 1:
-            bin_result = (
-                results[1]
-                if not isinstance(results[1], Exception)
-                else None
-            )
+            raw_bin = results[1]
+            bin_result = raw_bin if not isinstance(raw_bin, BaseException) else None
             if bin_result and bin_result.success:
                 request.state.bin_country = bin_result.bin_country
                 request.state.card_type   = bin_result.card_type

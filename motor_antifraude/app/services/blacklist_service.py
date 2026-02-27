@@ -1,21 +1,3 @@
-"""
-blacklist_service.py
---------------------
-Primera línea de defensa del Motor Antifraude.
-
-Verifica user_id, device_id, ip_address y card_bin contra listas negras
-almacenadas en Redis ANTES de calcular cualquier score. Si hay un hit,
-el orquestador responde ACTION_BLOCK_PERM en < 3ms sin ejecutar ningún
-otro módulo de análisis.
-
-Principio de diseño:
-  - Un solo mget en Redis cubre todas las entidades (O(N) sobre pocos keys)
-  - Los bloqueos pueden ser permanentes o temporales (con TTL)
-  - Cada entrada registra la razón del bloqueo para auditoría
-  - El analista puede remover entradas vía remove() cuando se confirma
-    falso positivo, evitando bloqueos injustos permanentes
-"""
-
 import logging
 from dataclasses import dataclass
 from enum import Enum
@@ -40,14 +22,12 @@ class BlacklistHit:
     hit: bool
     blacklist_type: Optional[BlacklistType] = None
     reason: Optional[str] = None
-    added_by: Optional[str] = None  
+    added_by: Optional[str] = None
 
 
 class BlacklistService:
-    
 
     KEY_PREFIX = "blacklist"
-
     TEMP_BLOCK_TTL = 60 * 60 * 24
 
     def __init__(self, redis_client: Redis):
@@ -62,7 +42,6 @@ class BlacklistService:
         email: Optional[str] = None,
         phone: Optional[str] = None,
     ) -> BlacklistHit:
-       
         keys = {
             BlacklistType.USER:   f"{self.KEY_PREFIX}:{BlacklistType.USER}:{user_id}",
             BlacklistType.DEVICE: f"{self.KEY_PREFIX}:{BlacklistType.DEVICE}:{device_id}",
@@ -114,7 +93,6 @@ class BlacklistService:
         temporary: bool = False,
         ttl_seconds: int = TEMP_BLOCK_TTL,
     ) -> bool:
-        
         key = f"{self.KEY_PREFIX}:{bl_type.value}:{value}"
         try:
             if temporary:
@@ -134,13 +112,12 @@ class BlacklistService:
             return False
 
     async def remove(self, bl_type: BlacklistType, value: str) -> bool:
-        
         key = f"{self.KEY_PREFIX}:{bl_type.value}:{value}"
         try:
             deleted = await self.redis.delete(key)
             if deleted:
                 logger.info(
-                    f"[Blacklist] Entrada eliminada (falso positivo revertido) — "
+                    f"[Blacklist] Entrada eliminada — "
                     f"type={bl_type.value}  value={value}"
                 )
             return deleted > 0
@@ -150,7 +127,6 @@ class BlacklistService:
             return False
 
     async def is_blocked(self, bl_type: BlacklistType, value: str) -> bool:
-        
         key = f"{self.KEY_PREFIX}:{bl_type.value}:{value}"
         try:
             return await self.redis.exists(key) > 0

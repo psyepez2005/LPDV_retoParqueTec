@@ -1,14 +1,3 @@
-"""
-main.py
--------
-Entry point del Motor Antifraude — Wallet Plux.
-
-Orden de registro de middlewares (importa el orden — se ejecutan al revés):
-  1. CORS            → primero en registrarse, último en ejecutarse
-  2. SecurityHeaders → headers de seguridad en todas las respuestas
-  3. GeoEnrichment   → enriquece el request con GeoIP y BIN antes del router
-"""
-
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
@@ -30,12 +19,10 @@ from app.api.middlewares import (
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # ── Startup ───────────────────────────────────────────────────────
     await redis_manager.connect()
     if settings.DEBUG:
         await init_db()
     yield
-    # ── Shutdown ──────────────────────────────────────────────────────
     await redis_manager.disconnect()
 
 
@@ -47,23 +34,16 @@ app = FastAPI(
     lifespan = lifespan,
 )
 
-# ── Middlewares (registrar en este orden exacto) ──────────────────────
-
-# 1. CORS — debe ser el primero para que los preflight pasen
+# Middlewares — registrar en este orden (CORS primero, ejecuta último)
 setup_cors(app, allowed_origins=settings.ALLOWED_ORIGINS)
-
-# 2. Security headers — aplica a todas las respuestas
 app.add_middleware(SecurityHeadersMiddleware)
-
-# 3. GeoEnrichment — enriquece el request antes de llegar al router
 app.add_middleware(GeoEnrichmentMiddleware)
 
-# ── Routers ───────────────────────────────────────────────────────────
 app.include_router(transactions.router)
 app.include_router(auth.router)
 app.include_router(dashboard.router)
 
-# ── Handler global de excepciones ────────────────────────────────────
+
 @app.exception_handler(FraudMotorException)
 async def fraud_exception_handler(
     request: Request, exc: FraudMotorException
@@ -73,7 +53,7 @@ async def fraud_exception_handler(
         content     = {"error": exc.message},
     )
 
-# ── Health check ──────────────────────────────────────────────────────
+
 @app.get("/health")
 async def health_check():
     redis_ok = await redis_manager.ping()

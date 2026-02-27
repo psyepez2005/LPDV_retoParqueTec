@@ -21,6 +21,9 @@ const modeBadge = document.getElementById('mode-badge');
 const analyzeText = document.getElementById('analyze-text');
 const analyzeSpinner = document.getElementById('analyze-spinner');
 const footerUser = document.getElementById('footer-user');
+const breakdownPanel = document.getElementById('breakdownPanel');
+const bdMetaGrid = document.getElementById('bdMetaGrid');
+const bdRows = document.getElementById('bdRows');
 
 // ── Payload de prueba por defecto ─────────────────────────────────────────────
 const DEFAULT_PAYLOAD = {
@@ -188,13 +191,79 @@ function showResultState(score, data) {
   showState('result');
   const level = getRiskLevel(score);
   applyTheme(level, score);
+  renderBreakdown(data);
   console.info('[Plux Motor] Respuesta completa del backend:', data);
 }
+
+// ── Render del panel de justificación ────────────────────────────────────────
+function renderBreakdown(data) {
+  if (!breakdownPanel || !bdMetaGrid || !bdRows) return;
+
+  // ─ Metadatos clave ──────────────────────────────────────────────────────────
+  const actionLabel = {
+    ACTION_APPROVE: '✅ Aprobada',
+    ACTION_CHALLENGE: '⚠️ Challenge',
+    ACTION_REJECT: '🚨 Rechazada',
+  };
+
+  const meta = [
+    { label: 'Decisión', value: actionLabel[data.action] ?? data.action },
+    { label: 'Tiempo respuesta', value: `${data.response_time_ms ?? '—'} ms` },
+    { label: 'Score total', value: `${data.risk_score} / 100` },
+    {
+      label: 'TX ID', value: data.transaction_id
+        ? data.transaction_id.slice(0, 8) + '…'
+        : '—'
+    },
+  ];
+
+  bdMetaGrid.innerHTML = meta.map(m => `
+    <div class="bd-meta-item">
+      <div class="bd-meta-label">${m.label}</div>
+      <div class="bd-meta-value">${m.value}</div>
+    </div>
+  `).join('');
+
+  // ─ Score breakdown rows ─────────────────────────────────────────────────────
+  const breakdown = data.score_breakdown ?? [];
+
+  if (breakdown.length === 0) {
+    bdRows.innerHTML = '<p style="font-size:12px;color:#9ca3af;">Sin detalle disponible.</p>';
+  } else {
+    bdRows.innerHTML = breakdown.map(item => {
+      let ptBg, ptColor;
+      if (item.points === 0) {
+        ptBg = '#f0fdf4'; ptColor = '#16a34a';
+      } else if (item.points <= 2) {
+        ptBg = '#fffbeb'; ptColor = '#d97706';
+      } else {
+        ptBg = '#fef2f2'; ptColor = '#dc2626';
+      }
+
+      return `
+        <div class="breakdown-row">
+          <div class="bd-points" style="background:${ptBg};color:${ptColor};">
+            +${item.points}
+          </div>
+          <div style="flex:1;min-width:0;">
+            <div class="bd-category">${item.category ?? ''}</div>
+            <div class="bd-code">${item.code}</div>
+            <div class="bd-desc">${item.description ?? ''}</div>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  breakdownPanel.style.display = 'block';
+}
+
 
 // ── Reset a estado inicial ────────────────────────────────────────────────────
 function resetState() {
   showState('initial');
   scoreBar.style.width = '0%';
+  if (breakdownPanel) breakdownPanel.style.display = 'none';
   if (modeBadge) {
     modeBadge.textContent = 'En espera';
     modeBadge.style.background = '#f5f3ff';
@@ -202,6 +271,7 @@ function resetState() {
     modeBadge.style.borderColor = '#ede9fe';
   }
 }
+
 
 // ── Toast de error ────────────────────────────────────────────────────────────
 function showErrorToast(message) {

@@ -1,36 +1,3 @@
-"""
-fraud_orchestrator.py
----------------------
-Orquestador principal del Motor Antifraude — Wallet Plux.
-
-Coordina todos los módulos de análisis y produce una decisión accionable
-en < 200ms (P99). No contiene lógica de detección propia — delega en
-los módulos especializados y agrega sus resultados.
-
-Flujo de ejecución:
-  1. Blacklist check          →  1-3ms    corto circuito inmediato si hay hit
-  2. asyncio.gather paralelo  →  ~120ms   todos los módulos simultáneamente
-       ├─ _evaluate_kyc_device            device fingerprint + multi-cuenta
-       ├─ _query_external_api             Sift/Kount con timeout 80ms + fallback
-       ├─ _evaluate_velocity              TopUpRulesEngine via Redis
-       ├─ GeoAnalyzer.analyze             viaje imposible + Modo Viajero
-       ├─ BehaviorEngine.analyze          patrón conductual + account takeover
-       ├─ TrustScoreService.get_profile   reducción por historial
-       └─ P2PAnalyzer.analyze             solo si transaction_type == P2P_SEND
-  3. Risk Score ponderado     →  < 1ms    W1·V + W2·D + W3·G + W4·B + W5·E
-  4. Trust reduction          →  < 1ms    hasta -25 pts para usuarios legítimos
-  5. P2P penalty              →  < 1ms    penalización adicional si aplica
-  6. Overrides críticos       →  < 1ms    viaje imposible, mula confirmada
-  7. Decision engine          →  < 1ms    APPROVE / CHALLENGE / BLOCK
-  8. HMAC-SHA256              →  1-2ms    firma de la respuesta
-  9. Background tasks         →  async    fire-and-forget, no bloquea respuesta
-
-Compatibilidad:
-  - Reemplaza directamente el fraud_orchestrator.py original
-  - El singleton fraud_orchestrator al final del archivo mantiene
-    la misma interfaz: await fraud_orchestrator.evaluate_transaction(payload)
-  - topup_rules.py, redis_client.py, schemas y routers NO se modifican
-"""
 
 import asyncio
 import hashlib
@@ -149,9 +116,12 @@ _EXACT_CATALOG: dict[str, tuple[int, str, str]] = {
     "OVERRIDE_MULE_PATTERN_CONFIRMED": (100, "Override",        "Override: patrón de cuenta mula confirmado — score forzado a máximo."),
 
     # ── Contribuciones base de módulos ponderados (breakdown honesto) ──────
-    "__VELOCITY_BASE__":               (0,   "Velocidad",       "Puntuación base del módulo de velocidad transaccional."),
-    "__DEVICE_BASE__":                 (0,   "Dispositivo",     "Puntuación base del módulo de dispositivo (sin anomalías detectadas)."),
-    "__EXTERNAL_BASE__":               (0,   "Externo",         "Puntuación base del módulo de riesgo externo (BIN/IP score)."),
+    "__VELOCITY_BASE__":               (0,   "Velocidad",              "Puntuación base del módulo de velocidad transaccional."),
+    "__DEVICE_BASE__":                 (0,   "Dispositivo",            "Puntuación base del módulo de dispositivo (sin anomalías detectadas)."),
+    "__EXTERNAL_BASE__":               (0,   "Externo",                "Puntuación base del módulo de riesgo externo (BIN/IP score)."),
+    "__ML_BASE__":                     (0,   "Inteligencia Artificial", "Contribución base del modelo de Machine Learning al score de riesgo."),
+    "__GEO_BASE__":                    (0,   "Geolocalización",         "Contribución residual del módulo de geolocalización al score de riesgo."),
+    "__BEHAVIOR_BASE__":               (0,   "Comportamiento",          "Contribución residual del módulo de comportamiento al score de riesgo."),
 }
 
 _PREFIX_CATALOG: dict[str, tuple[int, str, str]] = {
@@ -637,7 +607,11 @@ class FraudOrchestrator:
         # ── Códigos de dispositivo/velocidad — delta real antes/después ─────
         if ml_score >= 75.0:
             reason_codes.append("AI_MODEL_HIGH_FRAUD_PROBABILITY")
-            contributions["AI_MODEL_HIGH_FRAUD_PROBABILITY"] = round(self.W6_ML * ml_score) 
+            contributions["AI_MODEL_HIGH_FRAUD_PROBABILITY"] = round(self.W6_ML * ml_score)
+        elif (_ml_base := round(self.W6_ML * ml_score)) > 0:
+            # ML contribuye al weighted_score aunque no supere el umbral de 75
+            contributions["__ML_BASE__"] = _ml_base
+            reason_codes.append("__ML_BASE__")
         if device_score >= 80:
             reason_codes.append("EMULATOR_OR_ROOT_DETECTED")
             contributions.pop("__DEVICE_BASE__", None)
@@ -657,10 +631,24 @@ class FraudOrchestrator:
         if geo_result:
             reason_codes.extend(geo_result.reason_codes)
             _distribute_to_contributions(contributions, _geo_codes_pending, _geo_contrib)
+            # Si el módulo no emitió reason_codes con peso > 0, el contrib queda sin rastrear
+            if not _geo_codes_pending and _geo_contrib > 0:
+                contributions["__GEO_BASE__"] = _geo_contrib
+                reason_codes.append("__GEO_BASE__")
+        elif _geo_contrib > 0:
+            # geo_result falló pero el score ponderado ya lo incluyó
+            contributions["__GEO_BASE__"] = _geo_contrib
+            reason_codes.append("__GEO_BASE__")
 
         if behavior_result:
             reason_codes.extend(behavior_result.reason_codes)
             _distribute_to_contributions(contributions, _behavior_codes_pending, _behavior_contrib)
+            if not _behavior_codes_pending and _behavior_contrib > 0:
+                contributions["__BEHAVIOR_BASE__"] = _behavior_contrib
+                reason_codes.append("__BEHAVIOR_BASE__")
+        elif _behavior_contrib > 0:
+            contributions["__BEHAVIOR_BASE__"] = _behavior_contrib
+            reason_codes.append("__BEHAVIOR_BASE__")
 
         # ── P2P ──────────────────────────────────────────────────────────────
         if p2p_result:
@@ -699,6 +687,20 @@ class FraudOrchestrator:
             final_score = max(final_score, 91)
             contributions["OVERRIDE_MULE_PATTERN_CONFIRMED"] = final_score - _score_before
             reason_codes.append("OVERRIDE_MULE_PATTERN_CONFIRMED")
+
+        # ── Reconciliación final ─────────────────────────────────────────────
+        # Garantiza que sum(score_breakdown.points) == risk_score sin excepción.
+        # Absorbe cualquier residuo de redondeo en el código con mayor contribución.
+        _contrib_total = sum(contributions.values())
+        _gap = final_score - _contrib_total
+        if _gap != 0 and contributions:
+            _pos_codes = [c for c in contributions if contributions[c] > 0]
+            if _pos_codes:
+                _top = max(_pos_codes, key=lambda k: contributions[k])
+                contributions[_top] += _gap
+                logger.debug(
+                    f"[Orchestrator] Reconciliación: gap={_gap} absorbido en '{_top}'"
+                )
 
         action, challenge, user_msg = self._determine_action(
             score      = final_score,
