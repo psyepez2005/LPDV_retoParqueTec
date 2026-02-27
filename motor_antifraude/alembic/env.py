@@ -14,7 +14,11 @@ if config.config_file_name is not None:
 
 target_metadata = Base.metadata
 
-config.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
+# Fix asyncpg issue with sslmode
+db_url = settings.DATABASE_URL
+if "?sslmode=" in db_url:
+    db_url = db_url.split("?sslmode=")[0]
+config.set_main_option("sqlalchemy.url", db_url)
 
 def run_migrations_offline() -> None:
     url = config.get_main_option("sqlalchemy.url")
