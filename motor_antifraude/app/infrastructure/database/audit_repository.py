@@ -45,6 +45,7 @@ from app.domain.schemas import (
     FraudEvaluationResponse,
     TransactionPayload,
 )
+from app.services.gps_ip_mismatch import _country_from_coords
 
 logger = logging.getLogger(__name__)
 
@@ -141,7 +142,7 @@ class AuditRepository:
             # ── Extraer ip_country y gps_country del request state si disponibles ───
             # GeoEnrichmentMiddleware los enriquece en request.state
             _ip_country  = getattr(payload, 'ip_country', None)
-            _gps_country = None  # Inferido del GPS si el GeoAnalyzer lo devuelve
+            _gps_country = _country_from_coords(payload.latitude, payload.longitude)
 
             # ── Construir el registro de auditoría ────────────────────
             audit = TransactionAudit(

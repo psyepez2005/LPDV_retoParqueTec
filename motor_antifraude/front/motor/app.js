@@ -2,7 +2,9 @@
 // Integración real con POST /v1/transactions/evaluate
 // ⚠️ Solo frontend — no se toca el backend.
 
-const API_BASE = 'https://motor-antifraude-api.onrender.com';
+// NOTA: Para pruebas locales, cambia a http://localhost:8000
+const API_BASE = 'http://localhost:8000';
+// const API_BASE = 'https://motor-antifraude-api.onrender.com';
 
 // ── DOM refs ──────────────────────────────────────────────────────────────────
 const analyzeButton = document.getElementById('analyzeButton');
@@ -308,6 +310,89 @@ function showErrorToast(message) {
   setTimeout(() => toast?.remove(), 6000);
 }
 
+// ── Helpers Web Crypto API (E2E Encryption) ──────────────────────────────────
+// Utility to convert ArrayBuffer to Base64
+function bufferToBase64(buffer) {
+  const bytes = new Uint8Array(buffer);
+  let binary = '';
+  for (let i = 0; i < bytes.byteLength; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return window.btoa(binary);
+}
+
+// Helper to convert PEM string to CryptoKey
+function pemToArrayBuffer(pem) {
+  const b64Lines = pem.replace(/(-----(BEGIN|END) (PUBLIC KEY|CERTIFICATE)-----)/g, '').replace(/\s+/g, '');
+  const binary = window.atob(b64Lines);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return bytes.buffer;
+}
+
+// Fetch RSA Public Key and encrypt payload
+async function encryptPayloadE2E(plainPayloadJSON) {
+  try {
+    // 1. Fetch public key
+    const pkResp = await fetch(`${API_BASE}/v1/transactions/public-key`);
+    if (!pkResp.ok) throw new Error('Failed to fetch public key');
+    const { public_key: pemStr } = await pkResp.json();
+
+    // Import RSA Public Key into Web Crypto API
+    const publicKeyBuf = pemToArrayBuffer(pemStr);
+    const rsaPubKey = await crypto.subtle.importKey(
+      'spki',
+      publicKeyBuf,
+      { name: 'RSA-OAEP', hash: 'SHA-256' },
+      false,
+      ['encrypt']
+    );
+
+    // 2. Generate ephemeral AES-256-GCM key
+    const aesKey = await crypto.subtle.generateKey(
+      { name: 'AES-GCM', length: 256 },
+      true, // extractable (so we can encrypt it with RSA)
+      ['encrypt', 'decrypt']
+    );
+    const iv = crypto.getRandomValues(new Uint8Array(12)); // 96-bit IV
+
+    // 3. Encrypt the payload JSON with AES-GCM
+    const encoder = new TextEncoder();
+    const payloadBytes = encoder.encode(JSON.stringify(plainPayloadJSON));
+    const encryptedContent = await crypto.subtle.encrypt(
+      { name: 'AES-GCM', iv: iv },
+      aesKey,
+      payloadBytes
+    );
+
+    // Subtlety of AES-GCM in WebCrypto: ciphertext + auth_tag are returned together
+    const encryptedBytes = new Uint8Array(encryptedContent);
+    const ciphertext = encryptedBytes.slice(0, encryptedBytes.length - 16);
+    const authTag = encryptedBytes.slice(encryptedBytes.length - 16);
+
+    // 4. Export the raw AES key and encrypt it with RSA
+    const rawAesKey = await crypto.subtle.exportKey('raw', aesKey);
+    const encryptedAesKeyParams = await crypto.subtle.encrypt(
+      { name: 'RSA-OAEP' },
+      rsaPubKey,
+      rawAesKey
+    );
+
+    // 5. Construct the EncryptedPayload schema for the backend
+    return {
+      encrypted_aes_key: bufferToBase64(encryptedAesKeyParams),
+      iv: bufferToBase64(iv),
+      ciphertext: bufferToBase64(ciphertext),
+      auth_tag: bufferToBase64(authTag)
+    };
+  } catch (err) {
+    console.error("E2E Encryption Failed:", err);
+    throw new Error('Falló el protocolo de encriptación End-to-End local. Revisa consola.');
+  }
+}
+
 // ── Manejador principal del botón ─────────────────────────────────────────────
 analyzeButton.addEventListener('click', async () => {
   const rawPayload = payloadInput.value.trim();
@@ -336,6 +421,10 @@ analyzeButton.addEventListener('click', async () => {
   const startTime = Date.now();
 
   try {
+    // 3.5 [NEW] Encriptar payload nativamente antes de mandarlo!
+    const encryptedPayload = await encryptPayloadE2E(parsedPayload);
+
+    // El payload en texto plano JAMÁS llega a la función `fetch` ni a la red
     const response = await fetch(`${API_BASE}/v1/transactions/evaluate`, {
       method: 'POST',
       headers: {
@@ -344,7 +433,8 @@ analyzeButton.addEventListener('click', async () => {
         'Authorization': `Bearer ${token}`,
         'x-signature': 'dummy_signature_123',
       },
-      body: JSON.stringify(parsedPayload),
+      // Enviamos el objeto encriptado en lugar de parsedPayload
+      body: JSON.stringify(encryptedPayload),
     });
 
     const elapsed = Date.now() - startTime;

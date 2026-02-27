@@ -133,6 +133,20 @@ class ScoreEntry(BaseModel):
     category:    str   # Módulo que lo detectó (e.g. "Sesión", "Dispositivo")
     description: str   # Explicación en lenguaje natural del motivo
 
+class EncryptedPayload(BaseModel):
+    """
+    Payload encriptado desde el frontend.
+    Contiene la llave AES encriptada con RSA y el payload real encriptado con AES-GCM.
+    """
+    encrypted_aes_key: str = Field(..., description="AES key encrypted with Backend RSA Public Key (Base64)")
+    iv:                str = Field(..., description="Initialization Vector for AES-GCM (Base64)")
+    ciphertext:        str = Field(..., description="Encrypted JSON payload (Base64)")
+    auth_tag:          str = Field(..., description="Authentication Tag for AES-GCM (Base64)")
+
+class PublicKeyResponse(BaseModel):
+    """Respuesta con la llave pública RSA del backend."""
+    public_key: str
+
 
 class FraudEvaluationResponse(BaseModel):
     transaction_id:   UUID4

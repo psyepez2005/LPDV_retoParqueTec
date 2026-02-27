@@ -269,6 +269,7 @@ class FraudOrchestrator:
         self._geo_analyzer: Optional[GeoAnalyzer]    = None
         self._behavior_engine: Optional[BehaviorEngine] = None
         self._p2p_analyzer: Optional[P2PAnalyzer]    = None
+        self._ml_client: Optional[httpx.AsyncClient] = None
 
     def _ensure_redis_modules(self) -> None:
         redis = redis_manager.client
@@ -1074,13 +1075,15 @@ class FraudOrchestrator:
             "session_duration_seconds": int(getattr(payload, 'session_duration_seconds', 120) or 120)
         }
         try:
-            async with httpx.AsyncClient(timeout=0.150) as client:
-                response = await client.post("http://ml_service:8001/predict", json=ml_data)
-                if response.status_code == 200:
-                    return float(response.json().get("fraud_probability", 0.0) * 100)
-                else:
-                    logger.warning(f"[ML Model] HTTP {response.status_code}")
-                    return 0.0
+            if self._ml_client is None:
+                self._ml_client = httpx.AsyncClient(timeout=0.150)
+            
+            response = await self._ml_client.post("http://ml_service:8001/predict", json=ml_data)
+            if response.status_code == 200:
+                return float(response.json().get("fraud_probability", 0.0) * 100)
+            else:
+                logger.warning(f"[ML Model] HTTP {response.status_code}")
+                return 0.0
         except Exception as e:
             logger.warning(f"[ML Model] Fallo de conexión: {str(e)}")
             return 0.0

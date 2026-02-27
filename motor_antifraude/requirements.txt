@@ -43,3 +43,6 @@ python-multipart
 aiosmtplib
 pydantic[email]
 email-validator
+
+cryptography==42.0.5
+gunicorn==21.2.0
