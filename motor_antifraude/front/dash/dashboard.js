@@ -2,7 +2,7 @@
 // Conectado a GET /v1/dashboard/summary (datos reales desde la BD)
 // ⚠️ Sin simulación. Sin setInterval. Sin mocks.
 
-const API_BASE = 'http://localhost:8000';
+const API_BASE = 'https://motor-antifraude-api.onrender.com';
 
 // ── DOM refs ──────────────────────────────────────────────────────────────────
 const kpiVolume = document.getElementById('kpi-volume');
