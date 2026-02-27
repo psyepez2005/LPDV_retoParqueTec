@@ -24,23 +24,40 @@ const footerUser = document.getElementById('footer-user');
 
 // ── Payload de prueba por defecto ─────────────────────────────────────────────
 const DEFAULT_PAYLOAD = {
-  "user_id": "c8229c16-64f1-4f9d-91d3-0578998bde17",
-  "device_id": "dev-new-001",
-  "card_bin": "411121",
-  "amount": 5000.00,
+  "user_id": "a0000001-0000-4000-a000-000000000001",
+  "device_id": "device-legitimo-001",
+  "card_bin": "410001",
+  "amount": "150.00",
   "currency": "MXN",
-  "ip_address": "189.201.50.11",
+  "ip_address": "187.210.100.50",
   "latitude": 19.43,
   "longitude": -99.13,
   "transaction_type": "TOP_UP",
-  "session_id": "be9f6cf2-573d-488b-b5e1-46919ead6b55",
-  "timestamp": "2026-02-26T10:00:00Z",
-  "user_agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0)",
-  "sdk_version": "ios_4.2.1",
-  "account_age_days": 2,
-  "avg_monthly_amount": 100.00,
-  "kyc_level": "none",
-  "form_fill_time_seconds": 50
+  "recipient_id": null,
+  "session_id": "c0000001-0000-4000-c000-000000000001",
+  "timestamp": "2026-02-26T14:00:00Z",
+  "user_agent": "PluxWallet/2.1.0 (Android 13; Samsung Galaxy A54)",
+  "sdk_version": "android-2.1.0",
+  "device_os": "android",
+  "device_model": "Samsung Galaxy A54",
+  "is_rooted_device": false,
+  "is_emulator": false,
+  "network_type": "4g",
+  "battery_level": 72,
+  "account_age_days": 180,
+  "avg_monthly_amount": "500.00",
+  "tx_count_last_30_days": 8,
+  "failed_tx_last_7_days": 0,
+  "time_since_last_tx_minutes": 1440,
+  "kyc_level": "full",
+  "session_duration_seconds": 120,
+  "form_fill_time_seconds": 45,
+  "card_last4": "4321",
+  "is_international_card": false,
+  "merchant_category": "ECOMMERCE",
+  "merchant_id": null,
+  "merchant_name": "Amazon MX",
+  "ip_country": "MX"
 };
 
 // ── Temas visuales por nivel de riesgo ───────────────────────────────────────
@@ -92,11 +109,6 @@ const RISK_THEMES = [
 
 // ── Inicialización ────────────────────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', () => {
-  // Rellenar textarea con payload por defecto si está vacío
-  if (!payloadInput.value.trim()) {
-    payloadInput.value = JSON.stringify(DEFAULT_PAYLOAD, null, 2);
-  }
-
   // Mostrar user ID en footer
   const userId = localStorage.getItem('plux_user_id');
   if (userId && footerUser) {

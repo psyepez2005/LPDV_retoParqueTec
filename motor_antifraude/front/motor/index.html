@@ -483,15 +483,9 @@
                 Editable · se envía al backend
               </span>
             </label>
-            <textarea id="payloadInput" class="payload-textarea" spellcheck="false"></textarea>
+            <textarea id="payloadInput" class="payload-textarea" spellcheck="false"
+              placeholder='Pega aquí el JSON de la transacción&#10;{&#10;  "user_id": "...",&#10;  "card_bin": "...",&#10;  "amount": "...",&#10;  ...&#10;}'></textarea>
           </div>
-          <p style="font-size:11px;color:#9ca3af;line-height:1.5;">
-            El payload se envía al endpoint
-            <code style="background:#f3f4f6;padding:1px 5px;border-radius:4px;font-size:11px;color:#7c3aed;">
-                            POST /v1/transactions/evaluate
-                        </code>
-            con autenticación JWT real.
-          </p>
         </div>
       </div>
 
@@ -508,24 +502,7 @@
             <div id="analyze-spinner" class="btn-spinner-el" style="display:none;"></div>
           </button>
 
-          <!-- Info de la integración -->
-          <div style="margin-top:1rem;padding:12px 14px;background:#f5f3ff;
-                                border:1px solid #ede9fe;border-radius:12px;
-                                display:flex;gap:10px;align-items:flex-start;">
-            <svg style="flex-shrink:0;margin-top:1px;" xmlns="http://www.w3.org/2000/svg" width="14" height="14"
-              fill="none" stroke="#7c3aed" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-              viewBox="0 0 24 24">
-              <circle cx="12" cy="12" r="10" />
-              <line x1="12" y1="16" x2="12" y2="12" />
-              <line x1="12" y1="8" x2="12.01" y2="8" />
-            </svg>
-            <div style="font-size:11px;color:#5b21b6;line-height:1.55;">
-              <strong>Integración real:</strong> el motor evalúa 40+ señales de riesgo
-              (geolocalización, BIN, dispositivo, velocidad de sesión, KYC…)
-              y devuelve un <code
-                style="background:rgba(124,58,237,0.1);padding:1px 4px;border-radius:4px;">risk_score</code> de 0 a 100.
-            </div>
-          </div>
+
         </div>
       </div>
     </div>

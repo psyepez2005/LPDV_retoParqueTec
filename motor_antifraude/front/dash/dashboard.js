@@ -1,292 +1,397 @@
-// ============================================================
-// dashboard.js — Lógica del Dashboard Antifraude · Plux v1
-// ============================================================
-// Este archivo maneja la interactividad y los datos simulados
-// del dashboard analítico. Cuando el backend esté listo,
-// reemplaza las funciones de mock por llamadas reales a la API.
-// ============================================================
+// dashboard.js — Dashboard Antifraude Plux
+// Conectado a GET /v1/dashboard/summary (datos reales desde la BD)
+// ⚠️ Sin simulación. Sin setInterval. Sin mocks.
 
-// ── Referencias al DOM ──────────────────────────────────────
+const API_BASE = 'http://localhost:8000';
 
-const kpiVolume = document.getElementById("kpi-volume");
-const kpiRejection = document.getElementById("kpi-rejection");
-const kpiAlerts = document.getElementById("kpi-alerts");
-const kpiAlertsBadge = document.getElementById("kpi-alerts-badge");
-const txFeed = document.getElementById("tx-feed");
+// ── DOM refs ──────────────────────────────────────────────────────────────────
+const kpiVolume = document.getElementById('kpi-volume');
+const kpiVolumeChange = document.getElementById('kpi-volume-change');
+const kpiRejection = document.getElementById('kpi-rejection');
+const kpiRejChange = document.getElementById('kpi-rej-change');
+const kpiAlerts = document.getElementById('kpi-alerts');
+const kpiAlertsBadge = document.getElementById('kpi-alerts-badge');
+const kpiApproved = document.getElementById('kpi-approved');
+const txFeed = document.getElementById('tx-feed');
+const geoTableBody = document.getElementById('geo-table-body');
+const heatmapContainer = document.getElementById('heatmap-container');
+const identityList = document.getElementById('identity-list');
+const lastUpdated = document.getElementById('last-updated');
+const periodSelect = document.getElementById('period-select');
+const refreshBtn = document.getElementById('refresh-btn');
+const loadingOverlay = document.getElementById('loading-overlay');
 
-// ── Estado interno del dashboard ────────────────────────────
-
-const state = {
-  totalVolume: 0,
-  totalTx: 0,
-  rejectedTx: 0,
-  criticalAlerts: 0,
+// ── País → emoji flag ─────────────────────────────────────────────────────────
+const FLAG = {
+  EC: '🇪🇨', US: '🇺🇸', MX: '🇲🇽', CO: '🇨🇴', PE: '🇵🇪',
+  ES: '🇪🇸', RU: '🇷🇺', CN: '🇨🇳', NG: '🇳🇬', DE: '🇩🇪',
+  BR: '🇧🇷', AR: '🇦🇷', XX: '🌐',
 };
+function flag(c) { return (c && FLAG[c]) ? FLAG[c] : (c || '?'); }
 
-// ── Datos de muestra ────────────────────────────────────────
+// ── Acción → estilos ──────────────────────────────────────────────────────────
+function actionStyle(action) {
+  if (!action) return { color: '#6b7280', bg: '#f3f4f6', label: 'Desconocida' };
+  if (action === 'ACTION_APPROVE') return { color: '#16a34a', bg: '#f0fdf4', label: '✅ Aprobada' };
+  if (action.includes('BLOCK')) return { color: '#dc2626', bg: '#fef2f2', label: '🚨 Bloqueada' };
+  if (action.includes('CHALLENGE')) return { color: '#d97706', bg: '#fffbeb', label: '⚠️ Challenge' };
+  return { color: '#6b7280', bg: '#f3f4f6', label: action };
+}
 
-const MOCK_COUNTRIES = [
-  { code: "EC", name: "🇪🇨 Ecuador" },
-  { code: "MX", name: "🇲🇽 México" },
-  { code: "CO", name: "🇨🇴 Colombia" },
-  { code: "PE", name: "🇵🇪 Perú" },
-  { code: "US", name: "🇺🇸 EE.UU." },
-  { code: "ES", name: "🇪🇸 España" },
-  { code: "RU", name: "🇷🇺 Rusia" },
-  { code: "CN", name: "🇨🇳 China" },
-];
+// ── Score → color ──────────────────────────────────────────────────────────────
+function scoreColor(score) {
+  if (score <= 20) return '#16a34a';
+  if (score <= 70) return '#d97706';
+  return '#dc2626';
+}
 
-const MOCK_BINS = ["411111", "524356", "378282", "601100", "356600", "650031"];
+// ── Formateo ──────────────────────────────────────────────────────────────────
+function fmtMoney(v) {
+  return '$' + Number(v).toLocaleString('es-EC', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+function fmtTime(isoStr) {
+  const d = new Date(isoStr);
+  return d.toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+}
+function fmtDate(isoStr) {
+  const d = new Date(isoStr);
+  return d.toLocaleString('es-EC', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+}
 
-const MOCK_MERCHANTS = ["Maxiplus S.A.", "Aki Tiendas", "TuPrecio Online", "FarmaExpress", "Kiwi Market"];
+// ── Animación de número ───────────────────────────────────────────────────────
+function animateNum(el, target, prefix = '', suffix = '', decimals = 0) {
+  if (!el) return;
+  const start = 0;
+  const duration = 800;
+  const startTime = performance.now();
+  function step(now) {
+    const p = Math.min((now - startTime) / duration, 1);
+    const ease = 1 - Math.pow(1 - p, 3);
+    const val = start + (target - start) * ease;
+    el.textContent = prefix + val.toFixed(decimals) + suffix;
+    if (p < 1) requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+}
 
-// ============================================================
-// GENERADOR DE DATOS SIMULADOS (Mock Data Generator)
-// ============================================================
-/**
- * Genera un objeto de transacción simulada que imita la estructura
- * descrita en pilin.md.txt.
- *
- * TODO: Cuando el backend de FastAPI esté listo, eliminar esta función
- *       y reemplazar por un fetch/WebSocket al endpoint real.
- *       Ejemplo orientativo:
- *
- *       const ws = new WebSocket("ws://localhost:8000/ws/transactions");
- *       ws.onmessage = (event) => {
- *         const tx = JSON.parse(event.data);
- *         handleNewTransaction(tx);
- *       };
- */
-function generateMockTransaction() {
-  const ipCountry = MOCK_COUNTRIES[Math.floor(Math.random() * MOCK_COUNTRIES.length)];
-  const shippingCountry = MOCK_COUNTRIES[Math.floor(Math.random() * MOCK_COUNTRIES.length)];
-  const totalValue = parseFloat((Math.random() * 2500).toFixed(2));
-  const bin = MOCK_BINS[Math.floor(Math.random() * MOCK_BINS.length)];
-  const isFraud = ipCountry.code !== shippingCountry.code && Math.random() > 0.4;
-  const isHighValue = totalValue > 1000;
+// ── Mostrar/ocultar overlay de carga ─────────────────────────────────────────
+function setLoading(loading) {
+  if (loadingOverlay) loadingOverlay.style.display = loading ? 'flex' : 'none';
+  if (refreshBtn) {
+    refreshBtn.disabled = loading;
+    refreshBtn.style.opacity = loading ? '0.5' : '1';
+  }
+}
 
-  return {
-    // Variables del dataset (pilin.md.txt)
-    OrderDate: new Date().toISOString(),
-    CreditCardFirst6: bin,                         // BIN del emisor
-    TotalValue: totalValue,
-    IPAddress: `${randomIP()}`,
-    ShippingCountry: shippingCountry.name,
-    IPCountry: ipCountry.name,
-    CustomerLegalDocument: `${randomDoc()}`,
-    CustomerEMail: `user${randomInt(100, 9999)}@mail.com`,
-    CustomerPhoneNumber: `+${randomInt(1, 599)} ${randomInt(600, 999)} ${randomInt(1000, 9999)}`,
-    RUC: `${randomInt(10000000, 99999999)}001`,
-    MerchantName: MOCK_MERCHANTS[Math.floor(Math.random() * MOCK_MERCHANTS.length)],
-    // Campos calculados para la UI
-    _isFraud: isFraud,
-    _isHighValue: isHighValue,
+// ── Render KPIs ───────────────────────────────────────────────────────────────
+function renderKPIs(kpis) {
+  animateNum(kpiVolume, kpis.total_volume, '$', '', 2);
+  animateNum(kpiRejection, kpis.rejection_rate_pct, '', '%', 1);
+  animateNum(kpiAlerts, kpis.critical_alerts_last_hour, '', '', 0);
+  animateNum(kpiApproved, kpis.approved_tx, '', '', 0);
+
+  if (kpis.critical_alerts_last_hour > 0 && kpiAlertsBadge) {
+    kpiAlertsBadge.style.display = 'inline-flex';
+  } else if (kpiAlertsBadge) {
+    kpiAlertsBadge.style.display = 'none';
+  }
+
+  // Textos de contexto
+  if (kpiVolumeChange) kpiVolumeChange.textContent = `${kpis.total_tx} evaluaciones`;
+  if (kpiRejChange) kpiRejChange.textContent = `${kpis.rejected_tx} bloqueadas · ${kpis.challenged_tx} con challenge`;
+}
+
+// ── Render Feed Transaccional ─────────────────────────────────────────────────
+function renderFeed(items) {
+  if (!txFeed) return;
+  if (!items || items.length === 0) {
+    txFeed.innerHTML = `
+            <li style="text-align:center;color:#9ca3af;font-size:12px;padding:1.5rem;">
+                Sin transacciones en el período seleccionado
+            </li>`;
+    return;
+  }
+
+  txFeed.innerHTML = items.map(tx => {
+    const st = actionStyle(tx.action);
+    return `
+        <li class="feed-item" style="padding:10px 0;border-bottom:1px solid #f3f4f6;">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+                <div style="min-width:0;flex:1;">
+                    <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+                        <span style="font-size:11px;font-family:monospace;color:#374151;font-weight:600;">
+                            ${tx.card_bin}XXXXXX
+                        </span>
+                        <span style="font-size:10px;color:#9ca3af;">·</span>
+                        <span style="font-size:11px;font-weight:600;color:${scoreColor(tx.risk_score)};">
+                            Score ${tx.risk_score}
+                        </span>
+                    </div>
+                    <p style="font-size:11px;color:#8b5cf6;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+                        ${tx.merchant_name || '—'}
+                    </p>
+                </div>
+                <div style="text-align:right;flex-shrink:0;">
+                    <p style="font-size:12px;font-weight:700;color:#111827;">${fmtMoney(tx.amount)} ${tx.currency}</p>
+                    <span style="display:inline-block;margin-top:3px;font-size:10px;font-weight:600;
+                                 padding:2px 8px;border-radius:999px;
+                                 background:${st.bg};color:${st.color};">
+                        ${st.label}
+                    </span>
+                </div>
+            </div>
+            <p style="font-size:10px;color:#9ca3af;margin-top:4px;">${fmtTime(tx.timestamp)} · ${tx.transaction_type}</p>
+        </li>`;
+  }).join('');
+}
+
+// ── Render Discrepancias Geográficas ──────────────────────────────────────────
+function renderGeo(items) {
+  if (!geoTableBody) return;
+  if (!items || items.length === 0) {
+    geoTableBody.innerHTML = `
+            <tr><td colspan="5" style="text-align:center;color:#9ca3af;font-size:12px;padding:1.5rem;">
+                Sin discrepancias geográficas en el período
+            </td></tr>`;
+    return;
+  }
+
+  geoTableBody.innerHTML = items.map(g => {
+    const st = actionStyle(g.action);
+    const mismatch = g.is_mismatch;
+    const rowBg = mismatch ? '#fff7ed' : 'transparent';
+    return `
+        <tr style="background:${rowBg};border-bottom:1px solid #f3f4f6;">
+            <td style="padding:8px 12px;font-size:11px;font-family:monospace;color:#6b7280;">
+                ${g.ip_address || '—'}
+            </td>
+            <td style="padding:8px 12px;font-size:12px;">
+                ${flag(g.ip_country)} ${g.ip_country || '?'}
+            </td>
+            <td style="padding:8px 12px;font-size:12px;">
+                ${flag(g.gps_country)} ${g.gps_country || '?'}
+                ${mismatch ? '<span style="font-size:10px;color:#f97316;margin-left:4px;font-weight:700;">⚠ Mismatch</span>' : ''}
+            </td>
+            <td style="padding:8px 12px;">
+                <span style="font-size:11px;font-weight:700;color:${scoreColor(g.risk_score)};">
+                    ${g.risk_score}
+                </span>
+            </td>
+            <td style="padding:8px 12px;">
+                <span style="font-size:10px;padding:2px 8px;border-radius:999px;
+                             background:${st.bg};color:${st.color};font-weight:600;">
+                    ${st.label}
+                </span>
+            </td>
+        </tr>`;
+  }).join('');
+}
+
+// ── Render Heatmap de Comercios ────────────────────────────────────────────────
+function renderHeatmap(items) {
+  if (!heatmapContainer) return;
+  if (!items || items.length === 0) {
+    heatmapContainer.innerHTML = `
+            <p style="color:#9ca3af;font-size:12px;text-align:center;padding:1rem;">
+                Sin datos de comercios en el período
+            </p>`;
+    return;
+  }
+
+  const maxFraud = Math.max(...items.map(i => i.fraud_count), 1);
+
+  heatmapContainer.innerHTML = items.map(m => {
+    const pct = Math.round((m.fraud_count / maxFraud) * 100);
+    const danger = m.fraud_rate_pct > 20;
+    const barColor = danger
+      ? 'linear-gradient(to right,#f87171,#dc2626)'
+      : 'linear-gradient(to right,#fb923c,#f97316)';
+    return `
+        <div style="margin-bottom:14px;">
+            <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px;">
+                <span style="font-size:12px;font-weight:600;color:#374151;
+                             white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:60%;">
+                    ${m.merchant_name}
+                </span>
+                <div style="text-align:right;flex-shrink:0;margin-left:8px;">
+                    <span style="font-size:12px;font-weight:700;color:${danger ? '#dc2626' : '#f97316'};">
+                        ${m.fraud_count} fraudes
+                    </span>
+                    <span style="font-size:10px;color:#9ca3af;margin-left:4px;">/ ${m.total_count}</span>
+                    <span style="font-size:10px;font-weight:600;
+                                 padding:1px 6px;border-radius:999px;margin-left:6px;
+                                 background:${danger ? '#fef2f2' : '#fff7ed'};
+                                 color:${danger ? '#dc2626' : '#d97706'};">
+                        ${m.fraud_rate_pct.toFixed(1)}%
+                    </span>
+                </div>
+            </div>
+            <div style="height:8px;background:#f3f4f6;border-radius:999px;overflow:hidden;">
+                <div style="height:100%;width:${pct}%;background:${barColor};
+                            border-radius:999px;transition:width 0.7s ease;"></div>
+            </div>
+        </div>`;
+  }).join('');
+}
+
+// ── Render Identity Risks ─────────────────────────────────────────────────────
+function renderIdentity(items) {
+  if (!identityList) return;
+  if (!items || items.length === 0) {
+    identityList.innerHTML = `
+            <li style="color:#9ca3af;font-size:12px;text-align:center;padding:1rem;list-style:none;">
+                Sin usuarios de alto riesgo en el período
+            </li>`;
+    return;
+  }
+
+  const riskColors = {
+    HIGH: { bg: '#fef2f2', text: '#dc2626', border: '#fca5a5' },
+    MEDIUM: { bg: '#fffbeb', text: '#d97706', border: '#fcd34d' },
+    LOW: { bg: '#f0fdf4', text: '#16a34a', border: '#86efac' },
   };
+
+  identityList.innerHTML = items.map(u => {
+    const c = riskColors[u.risk_level] || riskColors.LOW;
+    const userId = u.user_id.slice(0, 8) + '…';
+    return `
+        <li style="display:flex;align-items:center;gap:12px;padding:10px 0;
+                   border-bottom:1px solid #f3f4f6;list-style:none;">
+            <div style="width:36px;height:36px;border-radius:10px;flex-shrink:0;
+                        background:${c.bg};border:1px solid ${c.border};
+                        display:flex;align-items:center;justify-content:center;
+                        font-size:14px;font-weight:800;color:${c.text};">
+                ${u.distinct_bins}
+            </div>
+            <div style="flex:1;min-width:0;">
+                <p style="font-size:11px;font-family:monospace;color:#374151;font-weight:600;">
+                    ${userId}
+                </p>
+                <p style="font-size:10px;color:#9ca3af;margin-top:1px;">
+                    ${u.tx_count} txs · Score máx: ${u.max_risk_score}
+                </p>
+            </div>
+            <div style="text-align:right;flex-shrink:0;">
+                <span style="font-size:10px;font-weight:700;
+                             padding:3px 9px;border-radius:999px;
+                             background:${c.bg};color:${c.text};border:1px solid ${c.border};">
+                    ${u.risk_level}
+                </span>
+                <p style="font-size:10px;color:#9ca3af;margin-top:2px;">
+                    ${u.distinct_bins} BINs distintos
+                </p>
+            </div>
+        </li>`;
+  }).join('');
 }
 
-// ── Helpers de generación ────────────────────────────────────
+// ── Fetch principal ───────────────────────────────────────────────────────────
+async function fetchDashboard(periodHours = 24) {
+  const token = localStorage.getItem('plux_token');
+  if (!token) {
+    showToast('No hay sesión activa. Redirigiendo al login…', 'error');
+    setTimeout(() => { window.location.href = '../auth/login.html'; }, 1500);
+    return;
+  }
 
-function randomInt(min, max) {
-  return Math.floor(Math.random() * (max - min + 1)) + min;
-}
+  setLoading(true);
 
-function randomIP() {
-  return `${randomInt(10, 220)}.${randomInt(0, 255)}.${randomInt(0, 255)}.${randomInt(1, 254)}`;
-}
+  try {
+    const url = `${API_BASE}/v1/dashboard/summary?period_hours=${periodHours}&feed_limit=20&geo_limit=30`;
+    const res = await fetch(url, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Accept': 'application/json',
+      },
+    });
 
-function randomDoc() {
-  return String(randomInt(1000000000, 9999999999));
-}
+    if (res.status === 401 || res.status === 403) {
+      localStorage.removeItem('plux_token');
+      window.location.href = '../auth/login.html';
+      return;
+    }
 
-// ============================================================
-// FUNCIONES DE RENDERIZADO
-// ============================================================
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err?.detail || `Error ${res.status}`);
+    }
 
-/**
- * Actualiza los KPIs superiores con los datos del estado global.
- *
- * TODO: Reemplazar `state` por la respuesta de:
- *       GET /api/kpis?date=today
- *       Esperar objeto: { totalVolume, totalTx, rejectedTx, criticalAlerts }
- */
-function renderKPIs() {
-  const rejectionRate = state.totalTx > 0
-    ? ((state.rejectedTx / state.totalTx) * 100).toFixed(1)
-    : "0.0";
+    const data = await res.json();
 
-  kpiVolume.textContent = `$${state.totalVolume.toLocaleString("es-EC", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-  kpiRejection.textContent = `${rejectionRate}%`;
-  kpiAlerts.textContent = String(state.criticalAlerts);
+    // Renderizar todos los módulos
+    renderKPIs(data.kpis);
+    renderFeed(data.transaction_feed);
+    renderGeo(data.geo_discrepancies);
+    renderHeatmap(data.merchant_heatmap);
+    renderIdentity(data.identity_risks);
 
-  // Mostrar badge LIVE si hay alertas críticas
-  if (state.criticalAlerts > 0) {
-    kpiAlertsBadge.classList.remove("hidden");
+    // Timestamp de última actualización
+    if (lastUpdated) {
+      lastUpdated.textContent = 'Actualizado: ' + new Date().toLocaleTimeString('es-EC');
+    }
+
+  } catch (err) {
+    console.error('[Plux Dashboard] Error:', err);
+    showToast(`Error al cargar datos: ${err.message}`, 'error');
+  } finally {
+    setLoading(false);
   }
 }
 
-/**
- * Añade una nueva fila al Feed Transaccional.
- * Se inserta al inicio de la lista para efecto "live feed".
- *
- * TODO: Llamar a esta función con cada mensaje de WebSocket o
- *       con el resultado de GET /api/transactions/latest?limit=20
- *       Mapear los campos del DTO del backend a las variables del dataset.
- *
- * @param {Object} tx - Objeto de transacción (ver generateMockTransaction)
- */
-function renderTransactionFeed(tx) {
-  // Quita el placeholder inicial si aún existe
-  const placeholder = txFeed.querySelector("li.text-center");
-  if (placeholder) placeholder.remove();
+// ── Toast ─────────────────────────────────────────────────────────────────────
+function showToast(msg, type = 'error') {
+  const prev = document.getElementById('dash-toast');
+  if (prev) prev.remove();
+  const colors = {
+    error: { bg: '#fef2f2', border: '#fca5a5', text: '#b91c1c' },
+    success: { bg: '#f0fdf4', border: '#86efac', text: '#166534' },
+  };
+  const c = colors[type] || colors.error;
+  const t = document.createElement('div');
+  t.id = 'dash-toast';
+  t.style.cssText = [
+    'position:fixed', 'bottom:20px', 'right:20px', 'z-index:9999',
+    `background:${c.bg}`, `border:1.5px solid ${c.border}`, `color:${c.text}`,
+    'border-radius:12px', 'padding:12px 18px',
+    'font-size:13px', 'font-weight:600', 'font-family:Inter,sans-serif',
+    'box-shadow:0 8px 30px rgba(0,0,0,0.12)', 'cursor:pointer', 'max-width:380px',
+  ].join(';');
+  t.textContent = msg;
+  document.body.appendChild(t);
+  t.addEventListener('click', () => t.remove());
+  setTimeout(() => t?.remove(), 5000);
+}
 
-  const time = new Date(tx.OrderDate).toLocaleTimeString("es-EC", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+// ── Logout ────────────────────────────────────────────────────────────────────
+function handleLogout() {
+  localStorage.removeItem('plux_token');
+  localStorage.removeItem('plux_user_id');
+  window.location.href = '../auth/login.html';
+}
 
-  // Determinar color según riesgo
-  // TODO: Usar el score real del motor antifraude (campo `riskScore` del backend)
-  let riskClass = "text-emerald-600";
-  let riskLabel = "Seguro";
-  if (tx._isFraud && tx._isHighValue) {
-    riskClass = "text-red-600";
-    riskLabel = "Fraude · Alto Valor";
-  } else if (tx._isFraud) {
-    riskClass = "text-orange-600";
-    riskLabel = "Sospechoso";
-  } else if (tx._isHighValue) {
-    riskClass = "text-amber-600";
-    riskLabel = "Alto Valor";
+// ── Inicialización ────────────────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', () => {
+  // User en el footer/header
+  const userId = localStorage.getItem('plux_user_id');
+  const footerUser = document.getElementById('footer-user');
+  if (userId && footerUser) footerUser.textContent = `ID: ${userId.slice(0, 8)}…`;
+
+  // Cargar datos iniciales
+  const period = periodSelect ? parseInt(periodSelect.value) : 24;
+  fetchDashboard(period);
+
+  // Cambio de período
+  if (periodSelect) {
+    periodSelect.addEventListener('change', () => {
+      fetchDashboard(parseInt(periodSelect.value));
+    });
   }
 
-  const li = document.createElement("li");
-  li.className = "feed-item";
-  li.innerHTML = `
-    <div class="flex items-center justify-between gap-2">
-      <div class="min-w-0">
-        <div class="flex items-center gap-1.5 flex-wrap">
-          <span class="text-[11px] font-mono text-gray-700">${tx.CreditCardFirst6}XXXXXX</span>
-          <span class="text-[10px] text-gray-400">·</span>
-          <span class="text-[11px] text-gray-600">${tx.ShippingCountry}</span>
-        </div>
-        <p class="text-xs text-purple-500 mt-0.5 truncate">${tx.MerchantName}</p>
-      </div>
-      <div class="text-right flex-shrink-0">
-        <p class="text-xs font-bold ${tx._isHighValue ? "text-amber-600" : "text-gray-900"}">
-          $${tx.TotalValue.toLocaleString("es-EC", { minimumFractionDigits: 2 })}
-        </p>
-        <p class="text-[10px] ${riskClass} font-medium">${riskLabel}</p>
-      </div>
-    </div>
-    <p class="text-[10px] text-gray-400 mt-1">${time}</p>
-  `;
-
-  // Insertar al inicio
-  txFeed.insertBefore(li, txFeed.firstChild);
-
-  // Limitar a 15 ítems para no saturar el DOM
-  while (txFeed.children.length > 15) {
-    txFeed.removeChild(txFeed.lastChild);
+  // Botón de refresh manual
+  if (refreshBtn) {
+    refreshBtn.addEventListener('click', () => {
+      const p = periodSelect ? parseInt(periodSelect.value) : 24;
+      fetchDashboard(p);
+    });
   }
-}
-
-/**
- * Actualiza la tabla geográfica con un nuevo dato de IP vs País.
- *
- * TODO: Reemplazar la lógica mock por los datos de:
- *       GET /api/transactions/geo-discrepancies
- *       Variables: IPAddress, ShippingCountry (del dataset pilin.md.txt)
- *
- * @param {Object} tx - Objeto de transacción
- */
-function renderGeoTable(tx) {
-  // TODO: Inyectar filas dinámicamente en #geo-table-body
-  //       Resaltar en naranja si IPCountry != ShippingCountry (Sospechoso)
-  //       Resaltar en rojo si la combinación coincide con patrones conocidos de fraude
-}
-
-/**
- * Actualiza el Mapa de Calor de unidades de negocio.
- *
- * TODO: Reemplazar datos estáticos del HTML por los de:
- *       GET /api/merchants/fraud-ranking
- *       Agrupar por RUC/Nombre del comercio, ordenar por count descendente.
- *       Calcular el ancho de la barra como (count / maxCount) * 100 + "%"
- */
-function renderHeatmap(data) {
-  // TODO: Implementar renderizado dinámico en #heatmap-container
-}
-
-/**
- * Actualiza la lista de Huella de Identidad (Velocity Check).
- *
- * TODO: Reemplazar los ítems estáticos del HTML por los de:
- *       GET /api/identities/high-risk
- *       Variables: CustomerLegalDocument, CustomerEMail, CustomerPhoneNumber
- *       Mostrar badge si el mismo documento aparece con > 2 tarjetas distintas.
- */
-function renderIdentityMonitor(data) {
-  // TODO: Implementar renderizado dinámico en #identity-list
-}
-
-// ============================================================
-// MANEJADOR DE NUEVA TRANSACCIÓN
-// ============================================================
-
-/**
- * Punto de entrada principal para procesar cada nueva transacción.
- * Actualiza el estado global y todos los módulos visuales.
- *
- * TODO: Llamar a esta función desde el handler de WebSocket o
- *       desde el polling del backend real.
- *
- * @param {Object} tx - Objeto de transacción (generateMockTransaction o payload real)
- */
-function handleNewTransaction(tx) {
-  // Actualizar estado global
-  state.totalTx++;
-  state.totalVolume += tx.TotalValue;
-
-  if (tx._isFraud) {
-    state.rejectedTx++;
-
-    // Contar como alerta crítica si es fraude en la última hora
-    // TODO: Filtrar por tx.OrderDate — comparar contra (Date.now() - 3600000)
-    state.criticalAlerts++;
-  }
-
-  // Re-renderizar todos los módulos
-  renderKPIs();
-  renderTransactionFeed(tx);
-
-  // TODO: Descomentar cuando las funciones estén implementadas:
-  // renderGeoTable(tx);
-  // renderHeatmap(aggregatedMerchantData);
-  // renderIdentityMonitor(aggregatedIdentityData);
-}
-
-// ============================================================
-// SIMULACIÓN EN TIEMPO REAL (Mock Data Generator Loop)
-// ============================================================
-// Emite una nueva transacción cada 3 segundos.
-// TODO: Eliminar este intervalo cuando se conecte al backend real.
-//       Reemplazar por WebSocket o SSE (Server-Sent Events) del endpoint FastAPI.
-
-const SIMULATION_INTERVAL_MS = 3000;
-
-// Cargar 3 transacciones iniciales al abrir el dashboard
-for (let i = 0; i < 3; i++) {
-  handleNewTransaction(generateMockTransaction());
-}
-
-// Luego emitir una nueva cada 3 segundos
-setInterval(() => {
-  handleNewTransaction(generateMockTransaction());
-}, SIMULATION_INTERVAL_MS);
-
-// ============================================================
-// FIN — dashboard.js
-// Próximos pasos (TODO general):
-//  1. Conectar handleNewTransaction() a WebSocket de FastAPI
-//  2. Implementar renderGeoTable() con datos reales
-//  3. Implementar renderHeatmap() con datos agrupados por RUC
-//  4. Implementar renderIdentityMonitor() con velocity checks reales
-//  5. Añadir filtros de fecha/rango en el header del dashboard
-// ============================================================
+});

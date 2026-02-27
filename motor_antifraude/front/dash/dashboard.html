@@ -8,368 +8,510 @@
     <meta name="description"
         content="Panel analítico de monitoreo antifraude en tiempo real para analistas de riesgo de Plux." />
 
-    <!-- Tailwind CSS vía CDN (Play CDN) -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Seguro de emergencia: evitar que SVGs sin clase exploten el layout -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+        rel="stylesheet" />
+    <link rel="stylesheet" href="../styles.css" />
+
     <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #f8f7fc;
+            min-height: 100vh;
+            color: #1e1b2e;
+        }
+
         svg {
             overflow: hidden;
         }
-    </style>
 
-    <!-- Estilos personalizados compartidos -->
-    <link rel="stylesheet" href="../styles.css" />
+        /* ── Header ─────────────── */
+        .dash-header {
+            background: white;
+            border-bottom: 1px solid #ede9fe;
+            position: sticky;
+            top: 0;
+            z-index: 50;
+            box-shadow: 0 1px 6px rgba(124, 58, 237, 0.06);
+        }
+
+        /* ── KPI cards ──────────── */
+        .kpi-card {
+            background: white;
+            border: 1px solid #ede9fe;
+            border-radius: 16px;
+            padding: 1.25rem;
+            box-shadow: 0 2px 8px rgba(124, 58, 237, 0.06);
+        }
+
+        .kpi-value {
+            font-size: 1.75rem;
+            font-weight: 800;
+            letter-spacing: -0.03em;
+            color: #1e1b2e;
+            line-height: 1.1;
+        }
+
+        /* ── Panel cards ─────────── */
+        .panel-card {
+            background: white;
+            border: 1px solid #ede9fe;
+            border-radius: 16px;
+            box-shadow: 0 2px 8px rgba(124, 58, 237, 0.06);
+            overflow: hidden;
+        }
+
+        .panel-header {
+            padding: 1rem 1.25rem;
+            border-bottom: 1px solid #f3f4f6;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+        }
+
+        .panel-title {
+            font-size: 13px;
+            font-weight: 700;
+            color: #1e1b2e;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .panel-body {
+            padding: 1rem 1.25rem;
+        }
+
+        /* ── Feed items ─────────── */
+        .feed-item {
+            list-style: none;
+        }
+
+        /* ── Geo table ──────────── */
+        .geo-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+        }
+
+        .geo-table thead th {
+            padding: 8px 12px;
+            font-size: 11px;
+            font-weight: 600;
+            color: #9ca3af;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            text-align: left;
+            background: #f9fafb;
+            border-bottom: 1px solid #f3f4f6;
+        }
+
+        .geo-table tbody tr:hover {
+            background: #faf5ff;
+        }
+
+        /* ── Loading overlay ────── */
+        .loading-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 100;
+            background: rgba(248, 247, 252, 0.85);
+            backdrop-filter: blur(4px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .loading-spinner {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            border: 3.5px solid #ede9fe;
+            border-top-color: #7c3aed;
+            animation: spin 0.85s linear infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* ── Refresh button ─────── */
+        .refresh-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 14px;
+            border-radius: 10px;
+            background: #f5f3ff;
+            color: #7c3aed;
+            border: 1px solid #ede9fe;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .refresh-btn:hover {
+            background: #ede9fe;
+        }
+
+        .refresh-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* ── Period select ──────── */
+        .period-select {
+            border: 1.5px solid #ede9fe;
+            border-radius: 8px;
+            padding: 5px 10px;
+            font-size: 12px;
+            color: #374151;
+            background: white;
+            cursor: pointer;
+            outline: none;
+            font-family: 'Inter', sans-serif;
+            font-weight: 500;
+        }
+
+        .period-select:focus {
+            border-color: #7c3aed;
+        }
+    </style>
 </head>
 
-<!-- .dash-page activa el tema claro de dashboard definido en styles.css -->
+<body>
 
-<body class="dash-page font-sans antialiased">
+    <!-- ── Loading overlay ──────────────────────────────────────── -->
+    <div id="loading-overlay" class="loading-overlay" style="display:none;">
+        <div style="text-align:center;">
+            <div class="loading-spinner" style="margin:0 auto 12px;"></div>
+            <p style="font-size:13px;font-weight:600;color:#7c3aed;">Cargando datos reales…</p>
+        </div>
+    </div>
 
-    <!-- ── HEADER ──────────────────────────────────────────── -->
-    <header class="dash-header sticky top-0 z-50">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 py-3.5 flex items-center justify-between gap-4">
+    <!-- ── HEADER ───────────────────────────────────────────────── -->
+    <header class="dash-header">
+        <div style="max-width:1280px;margin:0 auto;padding:0 1.5rem;height:60px;
+                    display:flex;align-items:center;justify-content:space-between;gap:1rem;">
 
-            <!-- Botón Volver -->
-            <a href="../motor/index.html"
-                class="inline-flex items-center gap-2 rounded-lg border border-purple-200 bg-purple-50 px-3.5 py-1.5 text-xs font-semibold text-purple-700 hover:bg-purple-100 active:scale-95 transition-all">
-                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
-                    stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                    <polyline points="15 18 9 12 15 6" />
-                </svg>
-                Volver al Motor
-            </a>
-
-            <!-- Título central -->
-            <div class="flex items-center gap-3">
-                <div class="h-8 w-8 rounded-lg bg-orange-100 border border-orange-200 flex items-center justify-center">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
-                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                        class="text-orange-500">
-                        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+            <!-- Izquierda: logo + título -->
+            <div style="display:flex;align-items:center;gap:12px;">
+                <a href="../motor/index.html" style="display:inline-flex;align-items:center;gap:6px;
+                          padding:6px 14px;border-radius:10px;
+                          border:1.5px solid #ede9fe;background:#f5f3ff;
+                          font-size:12px;font-weight:600;color:#7c3aed;
+                          text-decoration:none;transition:background 0.15s;"
+                    onmouseover="this.style.background='#ede9fe'" onmouseout="this.style.background='#f5f3ff'">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" stroke="currentColor"
+                        stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+                        <polyline points="15 18 9 12 15 6" />
                     </svg>
-                </div>
+                    Motor
+                </a>
+
                 <div>
-                    <h1 class="text-sm font-bold text-purple-800 tracking-tight leading-none">Dashboard Antifraude</h1>
-                    <p class="text-[11px] text-purple-400 leading-none mt-0.5">Plux Engine v1 · Monitoreo en tiempo real
+                    <p style="font-size:14px;font-weight:800;color:#1e1b2e;line-height:1.1;">
+                        Dashboard Antifraude
+                    </p>
+                    <p style="font-size:11px;color:#8b5cf6;font-weight:500;line-height:1.1;">
+                        Plux Engine v1 · Datos reales desde FastAPI
                     </p>
                 </div>
             </div>
 
-            <!-- Estado LIVE -->
-            <div class="hidden sm:flex items-center gap-2 text-[11px] text-gray-500">
-                <span class="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                <span>Motor activo</span>
+            <!-- Centro: selector de período -->
+            <div style="display:flex;align-items:center;gap:8px;">
+                <label for="period-select" style="font-size:11px;font-weight:600;color:#9ca3af;">
+                    Período:
+                </label>
+                <select id="period-select" class="period-select">
+                    <option value="6">Últimas 6h</option>
+                    <option value="24" selected>Últimas 24h</option>
+                    <option value="48">Últimas 48h</option>
+                    <option value="72">Últimas 72h</option>
+                    <option value="168">Última semana</option>
+                </select>
+                <button id="refresh-btn" class="refresh-btn">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" stroke="currentColor"
+                        stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+                        <polyline points="23 4 23 10 17 10" />
+                        <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+                    </svg>
+                    Actualizar
+                </button>
+            </div>
+
+            <!-- Derecha: estado + logout -->
+            <div style="display:flex;align-items:center;gap:12px;">
+                <div style="display:flex;align-items:center;gap:6px;
+                            font-size:11px;font-weight:600;color:#16a34a;">
+                    <span style="width:7px;height:7px;border-radius:50%;
+                                 background:#22c55e;animation:pulse 1.5s infinite;
+                                 display:inline-block;"></span>
+                    <span id="last-updated">Conectando…</span>
+                </div>
+                <button onclick="handleLogout()" style="font-size:12px;color:#9ca3af;background:none;border:none;
+                               cursor:pointer;padding:5px 10px;border-radius:8px;
+                               border:1px solid #e5e7eb;transition:all 0.15s;"
+                    onmouseover="this.style.background='#fef2f2';this.style.color='#dc2626'"
+                    onmouseout="this.style.background='none';this.style.color='#9ca3af'">
+                    Salir →
+                </button>
             </div>
         </div>
     </header>
 
-    <!-- ── CONTENIDO PRINCIPAL ─────────────────────────────── -->
-    <main class="max-w-7xl mx-auto px-4 sm:px-6 py-8 space-y-8">
+    <!-- ── MAIN ─────────────────────────────────────────────────── -->
+    <main style="max-width:1280px;margin:0 auto;padding:2rem 1.5rem;display:flex;flex-direction:column;gap:1.5rem;">
 
-        <!-- ── ROW 1: KPI Cards ────────────────────────────── -->
+        <!-- ── ROW 1: KPIs ──────────────────────────────────────── -->
         <section>
-            <h2 class="text-xs font-semibold uppercase tracking-widest text-purple-500 mb-4">KPIs Globales</h2>
-            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <h2 style="font-size:11px;font-weight:700;text-transform:uppercase;
+                       letter-spacing:0.08em;color:#8b5cf6;margin-bottom:1rem;">
+                KPIs Globales
+            </h2>
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;">
 
-                <!-- KPI: Volumen Transaccional -->
+                <!-- Volumen -->
                 <article class="kpi-card">
-                    <div class="flex items-center justify-between mb-3">
-                        <span class="text-[11px] font-semibold text-purple-500 uppercase tracking-wider">Volumen
-                            Transaccional</span>
-                        <div
-                            class="h-7 w-7 rounded-lg bg-purple-50 border border-purple-100 flex items-center justify-center">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-purple-500" viewBox="0 0 24 24"
-                                fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                stroke-linejoin="round">
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+                        <span style="font-size:11px;font-weight:600;color:#8b5cf6;
+                                     text-transform:uppercase;letter-spacing:0.06em;">
+                            Volumen
+                        </span>
+                        <div style="width:28px;height:28px;border-radius:8px;
+                                    background:#f5f3ff;border:1px solid #ede9fe;
+                                    display:flex;align-items:center;justify-content:center;">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" stroke="#7c3aed"
+                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
                                 <line x1="12" y1="1" x2="12" y2="23" />
                                 <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
                             </svg>
                         </div>
                     </div>
-                    <p id="kpi-volume" class="text-3xl font-bold text-gray-900 tracking-tight">$0.00</p>
-                    <p class="text-[11px] text-gray-400 mt-1.5">Total procesado hoy</p>
+                    <p id="kpi-volume" class="kpi-value">$0.00</p>
+                    <p id="kpi-volume-change" style="font-size:11px;color:#9ca3af;margin-top:4px;">
+                        0 evaluaciones
+                    </p>
                 </article>
 
-                <!-- KPI: Tasa de Rechazo -->
+                <!-- Tasa de rechazo -->
                 <article class="kpi-card">
-                    <div class="flex items-center justify-between mb-3">
-                        <span class="text-[11px] font-semibold text-purple-500 uppercase tracking-wider">Tasa de
-                            Rechazo</span>
-                        <div
-                            class="h-7 w-7 rounded-lg bg-orange-50 border border-orange-100 flex items-center justify-center">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-orange-500" viewBox="0 0 24 24"
-                                fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                stroke-linejoin="round">
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+                        <span style="font-size:11px;font-weight:600;color:#f97316;
+                                     text-transform:uppercase;letter-spacing:0.06em;">
+                            Tasa de Rechazo
+                        </span>
+                        <div style="width:28px;height:28px;border-radius:8px;
+                                    background:#fff7ed;border:1px solid #fed7aa;
+                                    display:flex;align-items:center;justify-content:center;">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" stroke="#f97316"
+                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+                                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+                            </svg>
+                        </div>
+                    </div>
+                    <p id="kpi-rejection" class="kpi-value" style="color:#f97316;">0.0%</p>
+                    <p id="kpi-rej-change" style="font-size:11px;color:#9ca3af;margin-top:4px;">
+                        0 bloqueadas · 0 con challenge
+                    </p>
+                </article>
+
+                <!-- Alertas críticas -->
+                <article class="kpi-card">
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+                        <span style="font-size:11px;font-weight:600;color:#dc2626;
+                                     text-transform:uppercase;letter-spacing:0.06em;">
+                            Alertas (1h)
+                        </span>
+                        <div style="width:28px;height:28px;border-radius:8px;
+                                    background:#fef2f2;border:1px solid #fca5a5;
+                                    display:flex;align-items:center;justify-content:center;">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" stroke="#dc2626"
+                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
                                 <circle cx="12" cy="12" r="10" />
-                                <line x1="4.93" y1="4.93" x2="19.07" y2="19.07" />
+                                <line x1="12" y1="8" x2="12" y2="12" />
+                                <line x1="12" y1="16" x2="12.01" y2="16" />
                             </svg>
                         </div>
                     </div>
-                    <p id="kpi-rejection" class="text-3xl font-bold text-orange-500 tracking-tight">0.0%</p>
-                    <p class="text-[11px] text-gray-400 mt-1.5">Transacciones rechazadas del total</p>
+                    <div style="display:flex;align-items:center;gap:8px;">
+                        <p id="kpi-alerts" class="kpi-value" style="color:#dc2626;">0</p>
+                        <span id="kpi-alerts-badge" style="display:none;font-size:10px;font-weight:700;
+                                     background:#fef2f2;color:#dc2626;
+                                     border:1px solid #fca5a5;padding:2px 8px;
+                                     border-radius:999px;animation:pulse 1.5s infinite;">
+                            LIVE
+                        </span>
+                    </div>
+                    <p style="font-size:11px;color:#9ca3af;margin-top:4px;">Bloqueadas en la última hora</p>
                 </article>
 
-                <!-- KPI: Alertas Críticas -->
+                <!-- Aprobadas -->
                 <article class="kpi-card">
-                    <div class="flex items-center justify-between mb-3">
-                        <span class="text-[11px] font-semibold text-purple-500 uppercase tracking-wider">Alertas
-                            Críticas</span>
-                        <div
-                            class="h-7 w-7 rounded-lg bg-red-50 border border-red-100 flex items-center justify-center">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-red-500" viewBox="0 0 24 24"
-                                fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                stroke-linejoin="round">
-                                <path
-                                    d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
-                                <line x1="12" y1="9" x2="12" y2="13" />
-                                <line x1="12" y1="17" x2="12.01" y2="17" />
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+                        <span style="font-size:11px;font-weight:600;color:#16a34a;
+                                     text-transform:uppercase;letter-spacing:0.06em;">
+                            Aprobadas
+                        </span>
+                        <div style="width:28px;height:28px;border-radius:8px;
+                                    background:#f0fdf4;border:1px solid #bbf7d0;
+                                    display:flex;align-items:center;justify-content:center;">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" stroke="#16a34a"
+                                stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+                                <polyline points="20 6 9 17 4 12" />
                             </svg>
                         </div>
                     </div>
-                    <div class="flex items-center gap-2.5">
-                        <p id="kpi-alerts" class="text-3xl font-bold text-red-500 tracking-tight">0</p>
-                        <span id="kpi-alerts-badge"
-                            class="hidden alert-badge text-[10px] font-bold bg-red-500 text-white px-2 py-0.5 rounded-full">LIVE</span>
-                    </div>
-                    <p class="text-[11px] text-gray-400 mt-1.5">Fraudes detectados última hora</p>
+                    <p id="kpi-approved" class="kpi-value" style="color:#16a34a;">0</p>
+                    <p style="font-size:11px;color:#9ca3af;margin-top:4px;">Transacciones en el período</p>
                 </article>
-
             </div>
         </section>
 
-        <!-- ── ROW 2: Grid de módulos de análisis ──────────── -->
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- ── ROW 2: Feed + Geo ─────────────────────────────────── -->
+        <div style="display:grid;grid-template-columns:1fr 1.6fr;gap:1.5rem;">
 
-            <!-- ── Módulo A: Panel de Discrepancias Geográficas ── -->
-            <section class="dash-module">
-                <div class="dash-module-header">
-                    <div class="flex items-center gap-2">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-orange-500" viewBox="0 0 24 24"
-                            fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                            stroke-linejoin="round">
-                            <circle cx="12" cy="10" r="3" />
-                            <path d="M12 2a8 8 0 0 1 8 8c0 5.25-8 14-8 14S4 15.25 4 10a8 8 0 0 1 8-8z" />
+            <!-- Feed transaccional -->
+            <div class="panel-card">
+                <div class="panel-header">
+                    <span class="panel-title">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" stroke="#7c3aed"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+                            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
                         </svg>
-                        <h3 class="text-sm font-semibold text-purple-800">Panel Geográfico</h3>
-                    </div>
-                    <span
-                        class="text-[10px] text-purple-600 bg-purple-50 border border-purple-100 px-2 py-0.5 rounded-full">IP
-                        vs País de Envío</span>
+                        Feed Transaccional
+                    </span>
+                    <span style="font-size:11px;color:#9ca3af;font-weight:500;">Últimas 20</span>
                 </div>
-                <div class="overflow-x-auto">
-                    <table class="w-full text-xs">
+                <div class="panel-body" style="padding:0.5rem 1.25rem;">
+                    <ul id="tx-feed" style="margin:0;padding:0;max-height:420px;overflow-y:auto;">
+                        <li style="text-align:center;color:#9ca3af;font-size:12px;padding:2rem;list-style:none;">
+                            Cargando transacciones…
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Discrepancias geográficas -->
+            <div class="panel-card">
+                <div class="panel-header">
+                    <span class="panel-title">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" stroke="#f97316"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+                            <circle cx="12" cy="10" r="3" />
+                            <path d="M12 21.7C17.3 17 20 13 20 10a8 8 0 1 0-16 0c0 3 2.7 6.9 8 11.7z" />
+                        </svg>
+                        Discrepancias Geográficas
+                    </span>
+                    <span style="font-size:11px;background:#fff7ed;color:#f97316;
+                                 border:1px solid #fed7aa;padding:2px 8px;
+                                 border-radius:999px;font-weight:600;">
+                        Mismatch IP / GPS
+                    </span>
+                </div>
+                <div style="overflow-x:auto;max-height:420px;overflow-y:auto;">
+                    <table class="geo-table">
                         <thead>
-                            <tr class="text-purple-500 border-b border-purple-100">
-                                <th class="text-left py-2 px-3 font-semibold">Dirección IP</th>
-                                <th class="text-left py-2 px-3 font-semibold">País IP</th>
-                                <th class="text-left py-2 px-3 font-semibold">País Envío</th>
-                                <th class="text-left py-2 px-3 font-semibold">Estado</th>
+                            <tr>
+                                <th>IP</th>
+                                <th>País IP</th>
+                                <th>País GPS</th>
+                                <th>Score</th>
+                                <th>Acción</th>
                             </tr>
                         </thead>
                         <tbody id="geo-table-body">
-                            <!-- TODO: Reemplazar filas estáticas con datos del backend (IPAddress vs ShippingCountry).
-                                 Llamar a renderGeoTable(data) desde dashboard.js cuando el endpoint esté disponible. -->
-                            <tr class="border-b border-gray-100 hover:bg-purple-50/40 transition-colors">
-                                <td class="py-2 px-3 text-gray-700 font-mono">201.218.45.12</td>
-                                <td class="py-2 px-3 text-gray-700">🇪🇨 Ecuador</td>
-                                <td class="py-2 px-3 text-gray-700">🇪🇸 España</td>
-                                <td class="py-2 px-3"><span class="status-badge status-suspicious">Sospechoso</span>
+                            <tr>
+                                <td colspan="5" style="text-align:center;color:#9ca3af;
+                                                       font-size:12px;padding:2rem;">
+                                    Cargando…
                                 </td>
-                            </tr>
-                            <tr class="border-b border-gray-100 hover:bg-purple-50/40 transition-colors">
-                                <td class="py-2 px-3 text-gray-700 font-mono">185.93.120.44</td>
-                                <td class="py-2 px-3 text-gray-700">🇷🇺 Rusia</td>
-                                <td class="py-2 px-3 text-gray-700">🇺🇸 EE.UU.</td>
-                                <td class="py-2 px-3"><span class="status-badge status-fraud">Fraude</span></td>
-                            </tr>
-                            <tr class="border-b border-gray-100 hover:bg-purple-50/40 transition-colors">
-                                <td class="py-2 px-3 text-gray-700 font-mono">192.168.0.1</td>
-                                <td class="py-2 px-3 text-gray-700">🇨🇷 Costa Rica</td>
-                                <td class="py-2 px-3 text-gray-700">🇨🇷 Costa Rica</td>
-                                <td class="py-2 px-3"><span class="status-badge status-safe">Seguro</span></td>
-                            </tr>
-                            <tr class="border-b border-gray-100 hover:bg-purple-50/40 transition-colors">
-                                <td class="py-2 px-3 text-gray-700 font-mono">41.78.200.3</td>
-                                <td class="py-2 px-3 text-gray-700">🇳🇬 Nigeria</td>
-                                <td class="py-2 px-3 text-gray-700">🇲🇽 México</td>
-                                <td class="py-2 px-3"><span class="status-badge status-fraud">Fraude</span></td>
                             </tr>
                         </tbody>
                     </table>
                 </div>
-            </section>
+            </div>
+        </div>
 
-            <!-- ── Módulo B: Monitor de Huella de Identidad ── -->
-            <section class="dash-module">
-                <div class="dash-module-header">
-                    <div class="flex items-center gap-2">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-purple-500" viewBox="0 0 24 24"
-                            fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                            stroke-linejoin="round">
-                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-                            <circle cx="9" cy="7" r="4" />
-                            <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-                            <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+        <!-- ── ROW 3: Heatmap + Identity ────────────────────────── -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;">
+
+            <!-- Heatmap de comercios -->
+            <div class="panel-card">
+                <div class="panel-header">
+                    <span class="panel-title">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" stroke="#dc2626"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+                            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                            <polyline points="9 22 9 12 15 12 15 22" />
                         </svg>
-                        <h3 class="text-sm font-semibold text-purple-800">Huella de Identidad</h3>
-                    </div>
-                    <span
-                        class="text-[10px] text-purple-600 bg-purple-50 border border-purple-100 px-2 py-0.5 rounded-full">Velocity
-                        Check</span>
+                        Heatmap de Comercios
+                    </span>
+                    <span style="font-size:11px;color:#9ca3af;font-weight:500;">Ranking por fraude</span>
                 </div>
-                <ul id="identity-list" class="space-y-2.5">
-                    <!-- TODO: Inyectar dinámicamente en renderIdentityMonitor(data).
-                         Variables: CustomerLegalDocument, CustomerEMail, CustomerPhoneNumber.
-                         Mostrar badge si un mismo documento aparece con > 2 tarjetas distintas. -->
-                    <li class="identity-item border-red-300">
-                        <div class="flex items-start justify-between gap-2">
-                            <div>
-                                <p class="text-xs font-semibold text-gray-800">DOC: 1720045112</p>
-                                <p class="text-[11px] text-gray-500">test99@protonmail.com · +1 555 867 5309</p>
-                            </div>
-                            <span
-                                class="alert-badge flex-shrink-0 text-[10px] font-bold bg-red-500 text-white px-2 py-0.5 rounded-full">5
-                                tarjetas</span>
-                        </div>
-                        <div class="mt-2 h-1.5 rounded-full bg-gray-100">
-                            <div class="h-1.5 rounded-full bg-gradient-to-r from-orange-400 to-red-500"
-                                style="width: 95%"></div>
-                        </div>
-                    </li>
-                    <li class="identity-item border-orange-300">
-                        <div class="flex items-start justify-between gap-2">
-                            <div>
-                                <p class="text-xs font-semibold text-gray-800">DOC: 0915678234</p>
-                                <p class="text-[11px] text-gray-500">fraude@tempmail.com · +593 99 123 4567</p>
-                            </div>
-                            <span
-                                class="alert-badge flex-shrink-0 text-[10px] font-bold bg-orange-500 text-white px-2 py-0.5 rounded-full">3
-                                tarjetas</span>
-                        </div>
-                        <div class="mt-2 h-1.5 rounded-full bg-gray-100">
-                            <div class="h-1.5 rounded-full bg-gradient-to-r from-yellow-400 to-orange-500"
-                                style="width: 75%"></div>
-                        </div>
-                    </li>
-                    <li class="identity-item border-gray-200">
-                        <div class="flex items-start justify-between gap-2">
-                            <div>
-                                <p class="text-xs font-semibold text-gray-800">DOC: 0401956723</p>
-                                <p class="text-[11px] text-gray-500">usuario.ok@gmail.com · +593 98 765 4321</p>
-                            </div>
-                            <span
-                                class="flex-shrink-0 text-[10px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-full">1
-                                tarjeta</span>
-                        </div>
-                        <div class="mt-2 h-1.5 rounded-full bg-gray-100">
-                            <div class="h-1.5 rounded-full bg-emerald-400" style="width: 20%"></div>
-                        </div>
-                    </li>
-                </ul>
-            </section>
+                <div class="panel-body">
+                    <div id="heatmap-container">
+                        <p style="color:#9ca3af;font-size:12px;text-align:center;padding:1rem;">
+                            Cargando…
+                        </p>
+                    </div>
+                </div>
+            </div>
 
-            <!-- ── Módulo C: Feed Transaccional en Tiempo Real ── -->
-            <section class="dash-module">
-                <div class="dash-module-header">
-                    <div class="flex items-center gap-2">
-                        <span class="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-emerald-600" viewBox="0 0 24 24"
-                            fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                            stroke-linejoin="round">
-                            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+            <!-- Identity Risks (Velocity Check) -->
+            <div class="panel-card">
+                <div class="panel-header">
+                    <span class="panel-title">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" stroke="#7c3aed"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                            <circle cx="12" cy="7" r="4" />
                         </svg>
-                        <h3 class="text-sm font-semibold text-purple-800">Feed Transaccional</h3>
-                    </div>
-                    <span
-                        class="text-[10px] text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">LIVE</span>
+                        Riesgos de Identidad
+                    </span>
+                    <span style="font-size:11px;background:#fef2f2;color:#dc2626;
+                                 border:1px solid #fca5a5;padding:2px 8px;
+                                 border-radius:999px;font-weight:600;">
+                        Multi-BIN
+                    </span>
                 </div>
-                <!-- El feed se llena dinámicamente desde dashboard.js -->
-                <ul id="tx-feed" class="space-y-2 max-h-60 overflow-y-auto feed-scroll">
-                    <!-- TODO: Inyectar ítems dinámicamente vía renderTransactionFeed(tx).
-                         Variables por ítem: OrderDate, CreditCardFirst6 (BIN), Total Value, ShippingCountry.
-                         Resaltar en rojo si Total Value > $1,000. Validar BIN contra país del banco. -->
-                    <li class="text-center text-xs text-gray-400 py-6">
-                        Iniciando simulación de transacciones…
-                    </li>
-                </ul>
-            </section>
+                <div class="panel-body" style="padding:0.5rem 1.25rem;">
+                    <ul id="identity-list" style="margin:0;padding:0;max-height:320px;overflow-y:auto;">
+                        <li style="text-align:center;color:#9ca3af;font-size:12px;
+                                   padding:2rem;list-style:none;">
+                            Cargando…
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
 
-            <!-- ── Módulo D: Mapa de Calor por Unidad de Negocio ── -->
-            <section class="dash-module">
-                <div class="dash-module-header">
-                    <div class="flex items-center gap-2">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-red-500" viewBox="0 0 24 24"
-                            fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                            stroke-linejoin="round">
-                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
-                            <rect x="7" y="7" width="3" height="9" />
-                            <rect x="14" y="7" width="3" height="5" />
-                        </svg>
-                        <h3 class="text-sm font-semibold text-purple-800">Mapa de Calor · Comercios</h3>
-                    </div>
-                    <span class="text-[10px] text-red-600 bg-red-50 border border-red-200 px-2 py-0.5 rounded-full">Más
-                        Vulnerados</span>
-                </div>
-                <div id="heatmap-container" class="space-y-3">
-                    <!-- TODO: Inyectar dinámicamente en renderHeatmap(data).
-                         Agrupar transacciones fraudulentas por RUC / Nombre del comercio
-                         y mostrar ranking ordenado de mayor a menor número de incidentes. -->
-                    <div>
-                        <div class="flex justify-between items-center mb-1.5">
-                            <span class="text-xs text-gray-700 font-medium">Maxiplus S.A.</span>
-                            <span class="text-[11px] text-red-600 font-semibold">34 incidentes</span>
-                        </div>
-                        <div class="h-2.5 rounded-full bg-purple-100">
-                            <div class="h-2.5 rounded-full bg-gradient-to-r from-orange-400 to-red-500 transition-all duration-700"
-                                style="width: 92%"></div>
-                        </div>
-                    </div>
-                    <div>
-                        <div class="flex justify-between items-center mb-1.5">
-                            <span class="text-xs text-gray-700 font-medium">Aki Tiendas</span>
-                            <span class="text-[11px] text-orange-600 font-semibold">21 incidentes</span>
-                        </div>
-                        <div class="h-2.5 rounded-full bg-purple-100">
-                            <div class="h-2.5 rounded-full bg-gradient-to-r from-yellow-400 to-orange-500 transition-all duration-700"
-                                style="width: 57%"></div>
-                        </div>
-                    </div>
-                    <div>
-                        <div class="flex justify-between items-center mb-1.5">
-                            <span class="text-xs text-gray-700 font-medium">TuPrecio Online</span>
-                            <span class="text-[11px] text-yellow-700 font-semibold">12 incidentes</span>
-                        </div>
-                        <div class="h-2.5 rounded-full bg-purple-100">
-                            <div class="h-2.5 rounded-full bg-gradient-to-r from-purple-400 to-yellow-400 transition-all duration-700"
-                                style="width: 32%"></div>
-                        </div>
-                    </div>
-                    <div>
-                        <div class="flex justify-between items-center mb-1.5">
-                            <span class="text-xs text-gray-700 font-medium">FarmaExpress</span>
-                            <span class="text-[11px] text-purple-600 font-semibold">5 incidentes</span>
-                        </div>
-                        <div class="h-2.5 rounded-full bg-purple-100">
-                            <div class="h-2.5 rounded-full bg-purple-400 transition-all duration-700"
-                                style="width: 13%"></div>
-                        </div>
-                    </div>
-                </div>
-            </section>
-
-        </div><!-- /grid módulos -->
     </main>
 
-    <!-- ── FOOTER ──────────────────────────────────────────── -->
-    <footer class="border-t border-gray-200 mt-10 py-3 bg-white">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between text-[11px] text-gray-400">
-            <span>&copy; 2026 LPDV Team | All rights reserved.</span>
-            <span>Plux · Motor Antifraude v1 · Demo</span>
+    <!-- ── FOOTER ───────────────────────────────────────────────── -->
+    <footer style="border-top:1px solid #ede9fe;background:white;
+                   padding:0.875rem 1.5rem;margin-top:1rem;">
+        <div style="max-width:1280px;margin:0 auto;
+                    display:flex;align-items:center;justify-content:space-between;
+                    font-size:11px;color:#9ca3af;">
+            <span>© 2026 LPDV Team · Plux Dashboard v1 · FastAPI Real</span>
+            <span id="footer-user" style="font-weight:500;"></span>
         </div>
     </footer>
 
-    <!-- Lógica del Dashboard -->
-    <script src="dashboard.js" defer></script>
+    <script src="dashboard.js?v=2" defer></script>
+
 </body>
 
 </html>
