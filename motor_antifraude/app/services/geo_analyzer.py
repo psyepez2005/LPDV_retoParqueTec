@@ -1,29 +1,3 @@
-"""
-geo_analyzer.py
----------------
-Análisis geográfico multi-capa del Motor Antifraude.
-
-Cruza tres fuentes de ubicación independientes para detectar fraude:
-  1. País derivado de la IP (via MaxMind GeoIP — enriquecido en middleware)
-  2. País derivado del GPS del dispositivo
-  3. País de emisión del BIN de la tarjeta
-
-Además detecta:
-  - Viaje imposible: el usuario no pudo haber viajado físicamente desde
-    su última ubicación conocida hasta la actual en el tiempo transcurrido
-  - Modo Viajero: el usuario declaró un viaje legítimo → reduce penalización
-  - Historial geográfico: países donde el usuario ya operó antes → menos riesgo
-  - Países de alto riesgo (lista FATF) → penalización adicional
-
-Principio de diseño anti falsos positivos:
-  - SIEMPRE verificar el Modo Viajero ANTES de penalizar por país extranjero
-  - SIEMPRE verificar historial de países antes de penalizar por país "nuevo"
-  - El viaje imposible tiene buffer de 3h para cubrir escalas y esperas
-  - Si Redis falla, retornar score neutro (no penalizar por infra caída)
-
-Tiempo esperado: 5-15ms (Redis lookups + cálculo haversine en memoria).
-"""
-
 import json
 import logging
 import math
@@ -44,29 +18,28 @@ HIGH_RISK_COUNTRIES = frozenset({
     "TN", "TT", "TZ", "UG", "VN", "VU", "YE", "ZW",
 })
 
-PENALTY_TRIPLE_MISMATCH       = 25   
-PENALTY_DUAL_MISMATCH         = 15   
-PENALTY_HIGH_RISK_COUNTRY     = 20   
-PENALTY_GPS_IP_DISTANCE       = 10   
-PENALTY_IMPOSSIBLE_TRAVEL     = 40   
-PENALTY_NEW_COUNTRY           = 15   
-PENALTY_GPS_OBFUSCATED        = 50   
+PENALTY_TRIPLE_MISMATCH       = 25
+PENALTY_DUAL_MISMATCH         = 15
+PENALTY_HIGH_RISK_COUNTRY     = 20
+PENALTY_GPS_IP_DISTANCE       = 10
+PENALTY_IMPOSSIBLE_TRAVEL     = 40
+PENALTY_NEW_COUNTRY           = 15
+PENALTY_GPS_OBFUSCATED        = 50
 
-REDUCTION_TRAVELER_MODE       = -30  
-REDUCTION_COUNTRY_IN_HISTORY  = -10  
+REDUCTION_TRAVELER_MODE       = -30
+REDUCTION_COUNTRY_IN_HISTORY  = -10
 
-MAX_FLIGHT_SPEED_KMH   = 900.0   
-AIRPORT_BUFFER_HOURS   = 3.0     
-MIN_DISTANCE_FOR_CHECK = 100.0   
-LAST_TX_TTL_DAYS       = 30      
+MAX_FLIGHT_SPEED_KMH   = 900.0
+AIRPORT_BUFFER_HOURS   = 3.0
+MIN_DISTANCE_FOR_CHECK = 100.0
+LAST_TX_TTL_DAYS       = 30
 
-HISTORY_MAX_COUNTRIES  = 20      
-HISTORY_TTL_DAYS       = 90     
+HISTORY_MAX_COUNTRIES  = 20
+HISTORY_TTL_DAYS       = 90
 
 
 @dataclass
 class GeoAnalysisResult:
-    
     score: float
     reason_codes: list[str] = field(default_factory=list)
     impossible_travel_detected: bool = False
@@ -76,7 +49,6 @@ class GeoAnalysisResult:
 
 
 class GeoAnalyzer:
-    
 
     LAST_TX_KEY    = "geo:user:{user_id}:last_tx"
     HISTORY_KEY    = "geo:user:{user_id}:country_history"
@@ -94,7 +66,7 @@ class GeoAnalyzer:
         bin_country: str,
         is_vpn: bool = False,
     ) -> GeoAnalysisResult:
-        
+
         result = GeoAnalysisResult(score=0.0)
         result.country_from_ip = ip_country
 
@@ -113,7 +85,7 @@ class GeoAnalyzer:
             await self._update_last_location(user_id, latitude, longitude, ip_country)
             await self._add_country_to_history(user_id, ip_country)
             return result
-        
+
         gps_country = self._approximate_country_from_coords(latitude, longitude)
         countries = {c for c in [ip_country, gps_country, bin_country] if c}
 
@@ -172,7 +144,6 @@ class GeoAnalyzer:
         )
         return result
 
-
     async def _check_impossible_travel(
         self,
         user_id: str,
@@ -180,7 +151,6 @@ class GeoAnalyzer:
         current_lon: float,
         current_country: str,
     ) -> bool:
-       
         key = self.LAST_TX_KEY.format(user_id=user_id)
         try:
             raw = await self.redis.get(key)
@@ -275,9 +245,7 @@ class GeoAnalyzer:
         except Exception as e:
             logger.error(f"[GeoAnalyzer] Error actualizando historial: {e}")
 
-
     async def _get_traveler_mode(self, user_id: str) -> Optional[dict]:
-       
         key = self.TRAVELER_KEY.format(user_id=user_id)
         try:
             raw = await self.redis.get(key)
@@ -299,7 +267,6 @@ class GeoAnalyzer:
         destination_countries: list,
         duration_days: int = 30,
     ) -> None:
-        
         key  = self.TRAVELER_KEY.format(user_id=user_id)
         data = {
             "destination_countries": [c.upper() for c in destination_countries],
@@ -329,14 +296,12 @@ class GeoAnalyzer:
         except Exception as e:
             logger.error(f"[GeoAnalyzer] Error cancelando Modo Viajero: {e}")
 
-
     def _haversine(
         self,
         lat1: float, lon1: float,
         lat2: float, lon2: float,
     ) -> float:
-        
-        R    = 6371.0   
+        R    = 6371.0
         phi1 = math.radians(lat1)
         phi2 = math.radians(lat2)
         dphi = math.radians(lat2 - lat1)
@@ -353,17 +318,15 @@ class GeoAnalyzer:
         lat: float,
         lon: float,
     ) -> Optional[str]:
-        
         if 14 <= lat <= 33 and -118 <= lon <= -86:
             return "MX"
         if 24 <= lat <= 49 and -125 <= lon <= -66:
             return "US"
         if 36 <= lat <= 44 and -9 <= lon <= 4:
             return "ES"
-        return None   
+        return None
 
     def _get_country_centroid(self, country_code: str) -> Optional[tuple]:
-        
         centroids = {
             "MX": (23.6345, -102.5528),
             "US": (37.0902, -95.7129),

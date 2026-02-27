@@ -1,15 +1,3 @@
-"""
-MOTOR DE ANÁLISIS CONDUCTUAL (BehaviorEngine)
----------------------------------------------
-Este motor determina si una transacción es "extraña" comparándola con el 
-pasado del usuario. No es una lista negra, sino un análisis de hábitos.
-
-Puntos clave:
-1. Resiliencia: Si Redis falla, el motor devuelve un score neutro (no bloquea).
-2. Velocidad: Diseñado para responder en < 10ms leyendo de caché.
-3. Inteligencia: Diferencia entre un robo de cuenta y un gasto normal de quincena.
-"""
-
 import json
 import logging
 from dataclasses import dataclass, field
@@ -21,44 +9,29 @@ from redis.asyncio import Redis
 logger = logging.getLogger(__name__)
 
 
-# ------------------------------------------------------------------ #
-#  Penalizaciones por anomalía de comportamiento                     #
-# ------------------------------------------------------------------ #
-PENALTY_PROFILE_CHANGE_24H  = 25   # Email o teléfono cambiado en últimas 24h
-                                   # → señal de account takeover
-PENALTY_FAST_LOGIN_TX       = 15   # Login y tx en < 30 segundos
-                                   # → posible bot o sesión robada
-PENALTY_UNUSUAL_HOUR        = 15   # Transacción en hora fuera del rango habitual
-PENALTY_AMOUNT_10X_AVERAGE  = 35   # Monto > 10x su promedio histórico
-PENALTY_AMOUNT_3X_AVERAGE   = 20   # Monto > 3x su promedio histórico
-PENALTY_CURRENCY_CHANGE     = 12   # Cambio de moneda habitual
-PENALTY_FIRST_WEEK_USER     = 10   # Cuenta con < 7 días de antigüedad
-PENALTY_NEW_RECIPIENT       = 10   # Primer pago a este destinatario (P2P)
-PENALTY_PROFILE_CHANGE_24H  = 25   
-PENALTY_FAST_LOGIN_TX       = 15   
-                                   
-PENALTY_UNUSUAL_HOUR        = 15   
-PENALTY_AMOUNT_10X_AVERAGE  = 35   
-PENALTY_AMOUNT_3X_AVERAGE   = 20  
-PENALTY_CURRENCY_CHANGE     = 12  
-PENALTY_FIRST_WEEK_USER     = 10  
-PENALTY_NEW_RECIPIENT       = 10  
+PENALTY_PROFILE_CHANGE_24H  = 25
+PENALTY_FAST_LOGIN_TX       = 15
+PENALTY_UNUSUAL_HOUR        = 15
+PENALTY_AMOUNT_10X_AVERAGE  = 35
+PENALTY_AMOUNT_3X_AVERAGE   = 20
+PENALTY_CURRENCY_CHANGE     = 12
+PENALTY_FIRST_WEEK_USER     = 10
+PENALTY_NEW_RECIPIENT       = 10
 
-REDUCTION_FREQUENT_RECIPIENT = -12  
-REDUCTION_PAYDAY_WINDOW      = -10  
-REDUCTION_LEARNING_PERIOD    = -5  
+REDUCTION_FREQUENT_RECIPIENT = -12
+REDUCTION_PAYDAY_WINDOW      = -10
+REDUCTION_LEARNING_PERIOD    = -5
 
-LEARNING_PERIOD_DAYS         = 30   
-FAST_LOGIN_THRESHOLD_SECONDS = 30   
-PROFILE_CHANGE_WINDOW_SEC    = 86400 
-FREQUENT_RECIPIENT_MIN_TXS   = 3    
-AMOUNT_RATIO_HIGH            = 10.0  
-AMOUNT_RATIO_MEDIUM          = 3.0   
+LEARNING_PERIOD_DAYS         = 30
+FAST_LOGIN_THRESHOLD_SECONDS = 30
+PROFILE_CHANGE_WINDOW_SEC    = 86400
+FREQUENT_RECIPIENT_MIN_TXS   = 3
+AMOUNT_RATIO_HIGH            = 10.0
+AMOUNT_RATIO_MEDIUM          = 3.0
 
 
 @dataclass
 class BehaviorAnalysisResult:
- 
     score: float
     reason_codes: list[str] = field(default_factory=list)
     amount_vs_average_ratio: float = 0.0
@@ -69,18 +42,17 @@ class BehaviorAnalysisResult:
 
 @dataclass
 class UserBehaviorProfile:
-   
-    avg_transaction_amount: float   
-    std_transaction_amount: float    
-    typical_hours: list              
-    primary_currency: str            
-    account_age_days: int            
-    last_profile_change_ts: float    
-    last_login_ts: float             
+    avg_transaction_amount: float
+    std_transaction_amount: float
+    typical_hours: list
+    primary_currency: str
+    account_age_days: int
+    last_profile_change_ts: float
+    last_login_ts: float
 
 
 class BehaviorEngine:
-    
+
     PROFILE_KEY   = "behavior:user:{user_id}:profile"
     RECIPIENT_KEY = "behavior:user:{user_id}:recipients"
 
@@ -96,7 +68,7 @@ class BehaviorEngine:
         recipient_id: Optional[str] = None,
         current_ts: Optional[datetime] = None,
     ) -> BehaviorAnalysisResult:
-        
+
         result = BehaviorAnalysisResult(score=0.0)
         now    = current_ts or datetime.now(timezone.utc)
 
@@ -112,14 +84,12 @@ class BehaviorEngine:
             result.reason_codes.append("LEARNING_PERIOD_ACTIVE")
             profile = profile or self._default_profile()
 
-        
         if profile.last_profile_change_ts > 0:
             seconds_since_change = now.timestamp() - profile.last_profile_change_ts
             if 0 < seconds_since_change < PROFILE_CHANGE_WINDOW_SEC:
                 result.score += PENALTY_PROFILE_CHANGE_24H
                 result.reason_codes.append("PROFILE_CHANGED_LAST_24H")
 
-        
         if profile.last_login_ts > 0:
             seconds_since_login = now.timestamp() - profile.last_login_ts
             if 0 < seconds_since_login < FAST_LOGIN_THRESHOLD_SECONDS:
@@ -132,7 +102,6 @@ class BehaviorEngine:
             result.score = max(0.0, min(100.0, result.score))
             return result
 
-        
         current_hour = now.hour
         if profile.typical_hours and current_hour not in profile.typical_hours:
             result.is_unusual_hour = True
@@ -191,20 +160,9 @@ class BehaviorEngine:
         return result
 
     def _is_payday_window(self, dt: datetime) -> bool:
-        """
-        Retorna True si el día actual es una fecha típica de pago en México.
-        Días: 1 (inicio de mes), 15 y 16 (quincena), 30 y 31 (fin de mes).
-
-        Esto evita penalizar transacciones grandes en días donde
-        el usuario naturalmente tiene más dinero disponible y gasta más.
-        """
         return dt.day in {1, 15, 16, 30, 31}
 
     async def _get_profile(self, user_id: str) -> Optional[UserBehaviorProfile]:
-        """
-        Lee el perfil conductual del usuario desde Redis.
-        Retorna None si no existe (usuario nuevo o Redis caído).
-        """
         key = self.PROFILE_KEY.format(user_id=user_id)
         try:
             raw = await self.redis.get(key)
@@ -228,10 +186,6 @@ class BehaviorEngine:
     async def _get_recipient_tx_count(
         self, user_id: str, recipient_id: str
     ) -> int:
-        """
-        Retorna el número de transacciones P2P exitosas previas
-        entre este emisor y este destinatario específico.
-        """
         key = self.RECIPIENT_KEY.format(user_id=user_id)
         try:
             raw = await self.redis.hget(key, recipient_id)
@@ -247,13 +201,6 @@ class BehaviorEngine:
         amount: float,
         currency: str,
     ) -> None:
-        """
-        Actualiza el contador de transacciones exitosas con un destinatario.
-        Se llama en background DESPUÉS de enviar la respuesta al Wallet.
-        El perfil completo (avg_amount, typical_hours, etc.) lo actualiza
-        el worker nocturno desde la base de datos — aquí solo el contador
-        de destinatarios porque necesita ser en tiempo real.
-        """
         if not recipient_id:
             return
         key = self.RECIPIENT_KEY.format(user_id=user_id)
@@ -266,7 +213,6 @@ class BehaviorEngine:
             )
 
     async def update_login_timestamp(self, user_id: str) -> None:
-        
         key = self.PROFILE_KEY.format(user_id=user_id)
         try:
             raw = await self.redis.get(key)
@@ -280,7 +226,6 @@ class BehaviorEngine:
             )
 
     async def update_profile_change_timestamp(self, user_id: str) -> None:
-        
         key = self.PROFILE_KEY.format(user_id=user_id)
         try:
             raw = await self.redis.get(key)
@@ -296,10 +241,6 @@ class BehaviorEngine:
             )
 
     def _default_profile(self) -> UserBehaviorProfile:
-        """
-        Perfil para usuarios sin historial en Redis.
-        Valores conservadores que evitan penalizaciones injustas.
-        """
         return UserBehaviorProfile(
             avg_transaction_amount = 0.0,
             std_transaction_amount = 0.0,

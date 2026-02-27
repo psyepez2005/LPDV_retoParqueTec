@@ -45,17 +45,18 @@ async def register(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                 detail="Formato de imagen no soportado. Usa JPG, PNG o WebP.",
             )
-        face_bytes = await face_photo.read()
-        if len(face_bytes) > MAX_PHOTO_SIZE_BYTES:
+        read_bytes: bytes = await face_photo.read()
+        if len(read_bytes) > MAX_PHOTO_SIZE_BYTES:
             raise HTTPException(
                 status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
                 detail="La foto no puede superar los 5MB.",
             )
-        if len(face_bytes) == 0:
+        if len(read_bytes) == 0:
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                 detail="La foto está vacía.",
             )
+        face_bytes = read_bytes
 
     if not cedula.isdigit():
         raise HTTPException(
@@ -86,7 +87,6 @@ async def login(
     db: AsyncSession = Depends(get_db_session),
 ):
     try:
-        # El servicio valida credenciales, genera el JWT y retorna UserLoginResponse completo
         user = await auth_service.login(
             db       = db,
             email    = payload.email,
@@ -99,7 +99,6 @@ async def login(
                 detail="Credenciales inválidas",
             )
 
-        # Retornar directamente el UserLoginResponse que construyó el servicio
         return user
 
     except FraudMotorException as e:
