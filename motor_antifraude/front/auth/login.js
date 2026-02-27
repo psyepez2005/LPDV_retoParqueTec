@@ -1,7 +1,7 @@
 // login.js — Lógica de inicio de sesión para Plux
 // POST /v1/auth/login — Content-Type: application/json
 
-const API_BASE = 'http://localhost:8000';
+const API_BASE = 'https://motor-antifraude-api.onrender.com';
 
 // ── Elementos DOM ─────────────────────────────────────────────────────────────
 const form = document.getElementById('login-form');

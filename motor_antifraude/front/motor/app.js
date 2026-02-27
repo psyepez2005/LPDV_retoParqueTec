@@ -2,7 +2,7 @@
 // Integración real con POST /v1/transactions/evaluate
 // ⚠️ Solo frontend — no se toca el backend.
 
-const API_BASE = 'http://localhost:8000';
+const API_BASE = 'https://motor-antifraude-api.onrender.com';
 
 // ── DOM refs ──────────────────────────────────────────────────────────────────
 const analyzeButton = document.getElementById('analyzeButton');
